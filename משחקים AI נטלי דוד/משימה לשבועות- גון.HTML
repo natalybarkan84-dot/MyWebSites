@@ -6,8 +6,13 @@
     <title>מגילת רות: מסע של חסד ותקווה - משימה אינטראקטיבית לגון</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Google Fonts for Hebrew -->
-    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Rubik:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    
     <style>
         body {
             font-family: 'Assistant', 'Rubik', sans-serif;
@@ -40,72 +45,160 @@
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+        @keyframes speakerWave {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.18); }
+        }
+        .speaking-active {
+            animation: speakerWave 1.2s infinite ease-in-out;
+            background-color: #f59e0b !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.6) !important;
+        }
+        .speaking-paragraph {
+            background-color: #fef3c7 !important;
+            border-right: 4px solid #f59e0b;
+            padding-right: 0.75rem;
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 <body class="min-h-screen pb-16 text-gray-800">
 
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-amber-500 to-orange-400 text-white shadow-md py-6 px-4 text-center mb-8 rounded-b-3xl">
-        <div class="max-w-4xl mx-auto flex flex-col items-center justify-between sm:flex-row gap-4">
-            <div class="text-right">
-                <span class="bg-amber-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">שלום גון! 🌟 משימה אינטראקטיבית</span>
-                <h1 class="text-3xl font-extrabold mt-1">מגילת רות: מסע של חסד ותקווה</h1>
-                <p class="text-amber-100 text-sm mt-1">קראי את הסיפור, הקשיבי לשאלות וגררי את התשובות הנכונות למקומן!</p>
+    <!-- Header & Audio Controls Toolbar -->
+    <header class="bg-gradient-to-r from-amber-500 via-orange-400 to-amber-600 text-white shadow-lg py-4 px-4 mb-6 rounded-b-3xl sticky top-0 z-40 backdrop-blur-md">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Right: Title & Student Greeting -->
+            <div class="text-right w-full md:w-auto">
+                <div class="flex items-center gap-2">
+                    <span class="bg-amber-700/60 text-amber-100 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-star text-amber-300"></i> שָׁלוֹם גּוֹן! מְשִׂימָה אִינְטֶרְאַקְטִיבִית
+                    </span>
+                    <span class="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-medium hidden sm:inline-flex items-center gap-1">
+                        <i class="fa-solid fa-person-dress text-amber-200"></i> קוֹל נָשִׁי אֱנוֹשִׁי
+                    </span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold mt-1 text-white drop-shadow">מְגִילַּת רוּת: מַסָּע שֶׁל חֶסֶד וְתִקְוָה</h1>
+                <p class="text-amber-100 text-xs sm:text-sm mt-0.5">קִרְאִי אֶת הַסִּפּוּר, הַקְשִׁיבִי לַשְּׁאֵלוֹת וְגִרְרִי אֶת הַתְּשׁוּבוֹת הַנְּכוֹנוֹת לִמְקוֹמָן!</p>
             </div>
-            <div class="flex gap-2">
-                <button onclick="readText('שלום גון! קראי את הסיפור ועני על השאלות בהצלחה!')" class="bg-white text-amber-600 hover:bg-amber-50 font-bold px-4 py-2 rounded-full shadow flex items-center gap-2 transition text-sm">
-                    🔊 הקראת הוראות
+
+            <!-- Left: Audio Controls (Speed + Stop) & Action Buttons -->
+            <div class="flex flex-wrap items-center justify-center md:justify-end gap-2 bg-black/15 p-2 rounded-2xl border border-white/20 shadow-inner w-full md:w-auto">
+                
+                <!-- Speed Controls (0.8x, 1.0x, 1.25x) -->
+                <div class="flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-xl border border-white/20 text-xs shadow-sm">
+                    <i class="fa-solid fa-gauge-high text-amber-200 ml-1"></i>
+                    <span class="font-bold opacity-90 ml-1">מְהִירוּת:</span>
+                    <button onclick="setAudioSpeed(0.8)" data-speed="0.8" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="הַאֲטָה (קצב נוח ואיטי)">0.8x</button>
+                    <button onclick="setAudioSpeed(1.0)" data-speed="1.0" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="קצב רגיל">1x</button>
+                    <button onclick="setAudioSpeed(1.25)" data-speed="1.25" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="הַאֲצָה (קצב מהיר יותר)">1.25x</button>
+                </div>
+
+                <!-- Stop Audio Button -->
+                <button id="stop-audio-btn" onclick="stopAudioPlayback()" class="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-sm flex items-center gap-1.5 border border-rose-400" title="עֲצוֹר הַקְרָאָה עַכְשָׁיו">
+                    <i class="fa-solid fa-circle-stop"></i>
+                    <span>עֲצוֹר</span>
                 </button>
-                <button onclick="resetApp()" class="bg-amber-700 hover:bg-amber-800 text-white font-bold px-4 py-2 rounded-full shadow text-sm transition">
-                    🔄 התחל מחדש
+
+                <!-- Instructions Audio Button -->
+                <button onclick="readInstructions()" class="bg-white text-amber-700 hover:bg-amber-50 active:scale-95 font-bold px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 transition text-xs sm:text-sm" title="הַקְרָאַת הוֹרָאוֹת">
+                    <i class="fa-solid fa-volume-high text-amber-600"></i>
+                    <span>הוֹרָאוֹת</span>
+                </button>
+
+                <!-- Reset App Button -->
+                <button onclick="resetApp()" class="bg-amber-800/80 hover:bg-amber-900 active:scale-95 text-white font-bold px-3 py-1.5 rounded-xl shadow-sm text-xs sm:text-sm transition flex items-center gap-1.5 border border-amber-600" title="הַתְחֵל מֵחָדָשׁ">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>אִפֿוּס</span>
                 </button>
             </div>
         </div>
+
+        <!-- Live Audio Status Banner (Visible when speaking) -->
+        <div id="tts-live-banner" class="max-w-5xl mx-auto mt-2.5 hidden items-center justify-between bg-white/20 border border-white/30 backdrop-blur-md px-4 py-1.5 rounded-xl text-xs text-white">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping"></span>
+                <i class="fa-solid fa-headphones text-amber-200"></i>
+                <span id="tts-live-text" class="font-semibold truncate max-w-md">מַקְרִיאָה בְּקוֹל נָשִׁי אֱנוֹשִׁי...</span>
+            </div>
+            <button onclick="stopAudioPlayback()" class="underline hover:text-amber-200 font-bold mr-2 text-rose-100 flex items-center gap-1">
+                <i class="fa-solid fa-stop text-[10px]"></i> לַעֲצִירָה לַחֲצִי כָּאן
+            </button>
+        </div>
     </header>
 
-    <main class="max-w-4xl mx-auto px-4 grid grid-cols-1 gap-8">
+    <main class="max-w-5xl mx-auto px-4 grid grid-cols-1 gap-8">
 
         <!-- PART A: THE STORY -->
-        <section class="story-box rounded-2xl p-6 shadow-md relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-amber-200 opacity-20 rounded-full -mr-10 -mt-10"></div>
-            <div class="absolute bottom-0 left-0 w-24 h-24 bg-orange-200 opacity-20 rounded-full -ml-10 -mb-10"></div>
+        <section class="story-box rounded-3xl p-6 md:p-8 shadow-md relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-amber-200 opacity-20 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+            <div class="absolute bottom-0 left-0 w-24 h-24 bg-orange-200 opacity-20 rounded-full -ml-10 -mb-10 pointer-events-none"></div>
             
-            <div class="flex items-center justify-between border-b border-amber-200 pb-3 mb-4">
-                <h2 class="text-2xl font-bold text-amber-800 flex items-center gap-2">
-                    🌾 חֵלֶק א': הַסִּיפּוּר שֶׁלָּנוּ
+            <div class="flex flex-wrap items-center justify-between border-b border-amber-200 pb-3 mb-4 gap-3">
+                <h2 class="text-2xl font-bold text-amber-900 flex items-center gap-2">
+                    <i class="fa-solid fa-wheat-awn text-amber-600"></i> חֵלֶק א': הַסִּיפּוּר שֶׁלָּנוּ
                 </h2>
-                <button onclick="readStory()" class="bg-amber-600 hover:bg-amber-700 text-white p-2 rounded-full shadow-md flex items-center gap-2 px-4 py-1.5 transition text-sm">
-                    <span>🔊 הַקְרֵא אֶת כָּל הַטֶּקְסְט</span>
+                <button id="read-story-btn" onclick="readStory()" class="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white p-2 rounded-full shadow-md flex items-center gap-2 px-4 py-1.5 transition text-sm font-bold">
+                    <i class="fa-solid fa-volume-high"></i>
+                    <span>הַקְרֵא אֶת כָּל הַטֶּקְסְט</span>
                 </button>
             </div>
 
-            <!-- Story Content with Nikud -->
+            <!-- Story Content with Nikud & Per-Paragraph Audio Buttons -->
             <div id="story-text" class="text-xl leading-loose text-gray-700 space-y-4">
-                <p>
-                    שָׁנִים רַבּוֹת לִפְנֵי שֶׁנּוֹלַד דָּוִד הַמֶּלֶךְ, הָיָה <span class="bg-amber-100 px-1 rounded font-semibold">רָעָב כָּבֵד</span> בְּאֶרֶץ יִשְׂרָאֵל. לָאֲנָשִׁים לֹא הָיָה מָה לֶאֱכֹל.
+                <p id="story-p-1" class="flex items-start gap-2.5 rounded-xl p-1.5 transition">
+                    <button onclick="readParagraph(1, this)" class="mt-1 text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-100 transition shrink-0" title="הַקְרֵא פִּסְקָה זוֹ">
+                        <i class="fa-solid fa-volume-high text-base"></i>
+                    </button>
+                    <span>
+                        שָׁנִים רַבּוֹת לִפְנֵי שֶׁנּוֹלַד דָּוִד הַמֶּלֶךְ, הָיָה <span class="bg-amber-100 px-1 rounded font-semibold text-amber-900">רָעָב כָּבֵד</span> בְּאֶרֶץ יִשְׂרָאֵל. לָאֲנָשִׁים לֹא הָיָה מָה לֶאֱכֹל.
+                    </span>
                 </p>
-                <p>
-                    אִישׁ עָשִׁיר אֶחָד מִבֵּית לֶחֶם, שֶׁקָּרְאוּ לוֹ <span class="bg-amber-100 px-1 rounded font-semibold">אֱלִימֶלֶךְ</span>, לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וְנָעַל אֶת הַשְּׁעָרִים שֶׁלּוֹ. הוּא לָקַח אֶת אִשְׁתּוֹ <span class="bg-amber-100 px-1 rounded font-semibold">נָעֳמִי</span> וְאֶת שְׁנֵי בָּנָיו, וּבָרַח לְאֶרֶץ מוֹאָב הַשְּׁכֵנָה.
+                <p id="story-p-2" class="flex items-start gap-2.5 rounded-xl p-1.5 transition">
+                    <button onclick="readParagraph(2, this)" class="mt-1 text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-100 transition shrink-0" title="הַקְרֵא פִּסְקָה זוֹ">
+                        <i class="fa-solid fa-volume-high text-base"></i>
+                    </button>
+                    <span>
+                        אִישׁ עָשִׁיר אֶחָד מִבֵּית לֶחֶם, שֶׁקָּרְאוּ לוֹ <span class="bg-amber-100 px-1 rounded font-semibold text-amber-900">אֱלִימֶלֶךְ</span>, לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וְנָעַל אֶת הַשְּׁעָרִים שֶׁלּוֹ. הוּא לָקַח אֶת אִשְׁתּוֹ <span class="bg-amber-100 px-1 rounded font-semibold text-amber-900">נָעֳמִי</span> וְאֶת שְׁנֵי בָּנָיו, וּבָרַח לְאֶרֶץ מוֹאָב הַשְּׁכֵנָה.
+                    </span>
                 </p>
-                <p>
-                    בְּאֶרֶץ מוֹאָב הַמִּשְׁפָּחָה אִבְּדָה אֶת כָּל הַכֶּסֶף שֶׁלָּהּ, וְגַם אֱלִימֶלֶךְ וְהַבָּנִים מֵתוּ. נָעֳמִי נִשְׁאֲרָה לְבַדָּהּ בְּאֶרֶץ זָרָה וְהָיְתָה עֲצוּבָה מְאֹד.
+                <p id="story-p-3" class="flex items-start gap-2.5 rounded-xl p-1.5 transition">
+                    <button onclick="readParagraph(3, this)" class="mt-1 text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-100 transition shrink-0" title="הַקְרֵא פִּסְקָה זוֹ">
+                        <i class="fa-solid fa-volume-high text-base"></i>
+                    </button>
+                    <span>
+                        בְּאֶרֶץ מוֹאָב הַמִּשְׁפָּחָה אִבְּדָה אֶת כָּל הַכֶּסֶף שֶׁלָּהּ, וְגַם אֱלִימֶלֶךְ וְהַבָּנִים מֵתוּ. נָעֳמִי נִשְׁאֲרָה לְבַדָּהּ בְּאֶרֶץ זָרָה וְהָיְתָה עֲצוּבָה מְאֹד.
+                    </span>
                 </p>
-                <p>
-                    הַכַּלָּה שֶׁלָּהּ, <span class="bg-amber-100 px-1 rounded font-semibold">רוּת</span>, אָהֲבָה אוֹתָהּ מְאֹד וְסֵירְבָה לַעֲזוֹב אוֹתָהּ. רוּת אָמְרָה לְנָעֳמִי מִילִּים יָפוֹת שֶׁל נֶאֱמָנוּת: <span class="text-orange-700 font-bold border-b-2 border-dashed border-orange-400">"עַמֵּךְ עַמִּי וֵאלֹהַיִךְ אֱלֹהָי"</span> – כְּלוֹמַר, אֲנִי הוֹלֶכֶת אִתָּךְ לְכָל מָקוֹם וְלֹא אֶעֱזוֹב אוֹתָךְ בַּצָּרָה.
+                <p id="story-p-4" class="flex items-start gap-2.5 rounded-xl p-1.5 transition">
+                    <button onclick="readParagraph(4, this)" class="mt-1 text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-100 transition shrink-0" title="הַקְרֵא פִּסְקָה זוֹ">
+                        <i class="fa-solid fa-volume-high text-base"></i>
+                    </button>
+                    <span>
+                        הַכַּלָּה שֶׁלָּהּ, <span class="bg-amber-100 px-1 rounded font-semibold text-amber-900">רוּת</span>, אָהֲבָה אוֹתָהּ מְאֹד וְסֵירְבָה לַעֲזוֹב אוֹתָהּ. רוּת אָמְרָה לְנָעֳמִי מִילִּים יָפוֹת שֶׁל נֶאֱמָנוּת: <span class="text-orange-700 font-bold border-b-2 border-dashed border-orange-400">"עַמֵּךְ עַמִּי וֵאלֹהַיִךְ אֱלֹהָי"</span> – כְּלוֹמַר, אֲנִי הוֹלֶכֶת אִתָּךְ לְכָל מָקוֹם וְלֹא אֶעֱזוֹב אוֹתָךְ בַּצָּרָה.
+                    </span>
                 </p>
-                <p>
-                    הַשְּׁתַּיִם חָזְרוּ יַחַד לָעִיר בֵּית לֶחֶם בִּתְחִלַּת קְצִיר הַחִטִּים. בִּגְלַל שֶׁלֹּא הָיָה לָהֶן אֹכֶל בַּבַּיִת, רוּת הָלְכָה לַשָּׂדֶה הַחַקְלָאִי כְּדֵי <span class="bg-amber-100 px-1 rounded font-semibold">לְלַקֵּט</span> (לֶאֱסוֹף מֵהָרִצְפָּה) שִׁבֳּלִים בּוֹדְדוֹת שֶׁנָּפְלוּ לַקּוֹצְרִים. רוּת עָשְׂתָה חֶסֶד גָּדוֹל מְאֹד עִם חֲמוֹתָהּ נָעֳמִי.
+                <p id="story-p-5" class="flex items-start gap-2.5 rounded-xl p-1.5 transition">
+                    <button onclick="readParagraph(5, this)" class="mt-1 text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-100 transition shrink-0" title="הַקְרֵא פִּסְקָה זוֹ">
+                        <i class="fa-solid fa-volume-high text-base"></i>
+                    </button>
+                    <span>
+                        הַשְּׁתַּיִם חָזְרוּ יַחַד לָעִיר בֵּית לֶחֶם בִּתְחִלַּת קְצִיר הַחִטִּים. בִּגְלַל שֶׁלֹּא הָיָה לָהֶן אֹכֶל בַּבַּיִת, רוּת הָלְכָה לַשָּׂדֶה הַחַקְלָאִי כְּדֵי <span class="bg-amber-100 px-1 rounded font-semibold text-amber-900">לְלַקֵּט</span> (לֶאֱסוֹף מֵהָרִצְפָּה) שִׁבֳּלִים בּוֹדְדוֹת שֶׁנָּפְלוּ לַקּוֹצְרִים. רוּת עָשְׂתָה חֶסֶד גָּדוֹל מְאֹד עִם חֲמוֹתָהּ נָעֳמִי.
+                    </span>
                 </p>
             </div>
         </section>
 
         <!-- PROGRESS BAR -->
-        <div class="bg-white rounded-xl p-4 shadow-sm flex items-center justify-between">
-            <span class="font-bold text-gray-700">ההתקדמות של גון:</span>
-            <div class="w-1/2 bg-gray-200 rounded-full h-4 overflow-hidden">
-                <div id="progress-bar" class="bg-gradient-to-r from-green-400 to-green-500 h-full w-0 transition-all duration-500"></div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between gap-4">
+            <span class="font-bold text-gray-700 flex items-center gap-1.5 text-sm md:text-base">
+                <i class="fa-solid fa-list-check text-amber-500"></i> הַהִתְקַדְּמוּת שֶׁל גּוֹן:
+            </span>
+            <div class="w-1/2 bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+                <div id="progress-bar" class="bg-gradient-to-r from-amber-400 via-green-400 to-green-500 h-full w-0 transition-all duration-500 rounded-full"></div>
             </div>
-            <span id="score-text" class="font-bold text-amber-600">0 מתוך 5 שאלות פתורות</span>
+            <span id="score-text" class="font-extrabold text-amber-600 text-sm md:text-base">0 מִתּוֹךְ 5 שְׁאֵלוֹת פְּתוּרוֹת</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -114,9 +207,9 @@
             <section class="lg:col-span-7 space-y-6">
                 <div class="bg-white rounded-2xl p-4 shadow-sm border-b-4 border-amber-400">
                     <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        ❓ חֵלֶק ב': מְשִׁימַת הַתְאָמָה
+                        <i class="fa-solid fa-circle-question text-amber-500"></i> חֵלֶק ב': מְשִׁימַת הַתְאָמָה
                     </h3>
-                    <p class="text-sm text-gray-500 mt-1">גררי את התשובה המתאימה מהסלסלה משמאל (או מלמטה) אל תיבת התשובה הריקה!</p>
+                    <p class="text-sm text-gray-500 mt-1">גִּרְרִי אֶת הַתְּשׁוּבָה הַמַּתְאִימָה מִסַּלְסִלַּת הַתְּשׁוּבוֹת מִשְּׂמֹאל (אוֹ לַחֲצִי עָלֶיהָ וְאָז עַל מִשְׁבֶּצֶת הַשְּׁאֵלָה)!</p>
                 </div>
 
                 <!-- QUESTION 1 -->
@@ -124,16 +217,16 @@
                     <div class="flex items-start gap-3">
                         <span class="bg-amber-100 text-amber-800 font-extrabold w-8 h-8 rounded-full flex items-center justify-center shrink-0">1</span>
                         <div class="w-full">
-                            <div class="flex items-center gap-2 mb-2">
+                            <div class="flex items-center justify-between gap-2 mb-2">
                                 <h4 class="font-bold text-lg text-gray-800">מַדּוּעַ עָזַב אֱלִימֶלֶךְ אֶת אֶרֶץ יִשְׂרָאֵל וְעָבַר לְאֶרֶץ מוֹאָב?</h4>
-                                <button onclick="readText('מדוע עזב אלימלך את ארץ ישראל ועבר לארץ מואב?')" class="text-amber-600 hover:text-amber-800 p-1 rounded-full hover:bg-amber-50" title="הקרא שאלה">
-                                    🔊
+                                <button onclick="readQuestion(1, this)" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-50 transition shrink-0" title="הַקְרֵא שְׁאֵלָה זוֹ">
+                                    <i class="fa-solid fa-volume-high text-lg"></i>
                                 </button>
                             </div>
                             
                             <!-- Drop Zone -->
                             <div id="q1" data-correct-id="ans1" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick('q1')" class="drop-zone border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[60px] bg-gray-50 flex items-center justify-center text-center font-medium text-gray-600 hover:border-amber-400 cursor-pointer">
-                                <span>לחצי כאן או גררי לכאן את התשובה</span>
+                                <span>לַחֲצִי כָּאן אוֹ גִּרְרִי לְכָאן אֶת הַתְּשׁוּבָה</span>
                             </div>
                             <div id="feedback-q1" class="hidden mt-2 text-sm font-bold text-center"></div>
                         </div>
@@ -145,16 +238,16 @@
                     <div class="flex items-start gap-3">
                         <span class="bg-amber-100 text-amber-800 font-extrabold w-8 h-8 rounded-full flex items-center justify-center shrink-0">2</span>
                         <div class="w-full">
-                            <div class="flex items-center gap-2 mb-2">
+                            <div class="flex items-center justify-between gap-2 mb-2">
                                 <h4 class="font-bold text-lg text-gray-800">מָה קָרָה לְאֱלִימֶלֶךְ וְלִשְׁנֵי בָּנָיו בְּאֶרֶץ מוֹאָב?</h4>
-                                <button onclick="readText('מה קרה לאלימלך ולשני בניו בארץ מואב?')" class="text-amber-600 hover:text-amber-800 p-1 rounded-full hover:bg-amber-50" title="הקרא שאלה">
-                                    🔊
+                                <button onclick="readQuestion(2, this)" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-50 transition shrink-0" title="הַקְרֵא שְׁאֵלָה זוֹ">
+                                    <i class="fa-solid fa-volume-high text-lg"></i>
                                 </button>
                             </div>
                             
                             <!-- Drop Zone -->
                             <div id="q2" data-correct-id="ans2" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick('q2')" class="drop-zone border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[60px] bg-gray-50 flex items-center justify-center text-center font-medium text-gray-600 hover:border-amber-400 cursor-pointer">
-                                <span>לחצי כאן או גררי לכאן את התשובה</span>
+                                <span>לַחֲצִי כָּאן אוֹ גִּרְרִי לְכָאן אֶת הַתְּשׁוּבָה</span>
                             </div>
                             <div id="feedback-q2" class="hidden mt-2 text-sm font-bold text-center"></div>
                         </div>
@@ -166,16 +259,16 @@
                     <div class="flex items-start gap-3">
                         <span class="bg-amber-100 text-amber-800 font-extrabold w-8 h-8 rounded-full flex items-center justify-center shrink-0">3</span>
                         <div class="w-full">
-                            <div class="flex items-center gap-2 mb-2">
+                            <div class="flex items-center justify-between gap-2 mb-2">
                                 <h4 class="font-bold text-lg text-gray-800">הַעְתִּיקוּ מֵהַטֶּקְסְט אֶת הַמִּשְׁפָּט הַמְּפוּרְסָם שֶׁאָמְרָה רוּת לְנָעֳמִי כְּדֵי לְהַרְאוֹת לָהּ שֶׁהִיא נֶאֱמָנָה לָהּ.</h4>
-                                <button onclick="readText('העתיקו מהטקסט את המשפט המפורסם שאמרה רות לנעמי כדי להראות לה שהיא נאמנה לה.')" class="text-amber-600 hover:text-amber-800 p-1 rounded-full hover:bg-amber-50" title="הקרא שאלה">
-                                    🔊
+                                <button onclick="readQuestion(3, this)" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-50 transition shrink-0" title="הַקְרֵא שְׁאֵלָה זוֹ">
+                                    <i class="fa-solid fa-volume-high text-lg"></i>
                                 </button>
                             </div>
                             
                             <!-- Drop Zone -->
                             <div id="q3" data-correct-id="ans3" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick('q3')" class="drop-zone border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[60px] bg-gray-50 flex items-center justify-center text-center font-medium text-gray-600 hover:border-amber-400 cursor-pointer">
-                                <span>לחצי כאן או גררי לכאן את התשובה</span>
+                                <span>לַחֲצִי כָּאן אוֹ גִּרְרִי לְכָאן אֶת הַתְּשׁוּבָה</span>
                             </div>
                             <div id="feedback-q3" class="hidden mt-2 text-sm font-bold text-center"></div>
                         </div>
@@ -187,16 +280,16 @@
                     <div class="flex items-start gap-3">
                         <span class="bg-amber-100 text-amber-800 font-extrabold w-8 h-8 rounded-full flex items-center justify-center shrink-0">4</span>
                         <div class="w-full">
-                            <div class="flex items-center gap-2 mb-2">
+                            <div class="flex items-center justify-between gap-2 mb-2">
                                 <h4 class="font-bold text-lg text-gray-800">מָה עָשְׂתָה רוּת בַּשָּׂדֶה כְּדֵי שֶׁיִּהְיֶה לָהּ וּלְנָעֳמִי מָה לֶאֱכֹל?</h4>
-                                <button onclick="readText('מה עשתה רות בשדה כדי שיהיה לה ולנעמי מה לאכול?')" class="text-amber-600 hover:text-amber-800 p-1 rounded-full hover:bg-amber-50" title="הקרא שאלה">
-                                    🔊
+                                <button onclick="readQuestion(4, this)" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-50 transition shrink-0" title="הַקְרֵא שְׁאֵלָה זוֹ">
+                                    <i class="fa-solid fa-volume-high text-lg"></i>
                                 </button>
                             </div>
                             
                             <!-- Drop Zone -->
                             <div id="q4" data-correct-id="ans4" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick('q4')" class="drop-zone border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[60px] bg-gray-50 flex items-center justify-center text-center font-medium text-gray-600 hover:border-amber-400 cursor-pointer">
-                                <span>לחצי כאן או גררי לכאן את התשובה</span>
+                                <span>לַחֲצִי כָּאן אוֹ גִּרְרִי לְכָאן אֶת הַתְּשׁוּבָה</span>
                             </div>
                             <div id="feedback-q4" class="hidden mt-2 text-sm font-bold text-center"></div>
                         </div>
@@ -208,16 +301,16 @@
                     <div class="flex items-start gap-3">
                         <span class="bg-amber-100 text-amber-800 font-extrabold w-8 h-8 rounded-full flex items-center justify-center shrink-0">5</span>
                         <div class="w-full">
-                            <div class="flex items-center gap-2 mb-2">
-                                <h4 class="font-bold text-lg text-gray-800">אֵילוּ תְּכוּנוֹת אֹפִי יֵשׁ לָרוּת עַל פִּי הַסִּפּוּר? (כתבו 2 משפטים)</h4>
-                                <button onclick="readText('אילו תכונות אופי יש לרות על פי הסיפור?')" class="text-amber-600 hover:text-amber-800 p-1 rounded-full hover:bg-amber-50" title="הקרא שאלה">
-                                    🔊
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <h4 class="font-bold text-lg text-gray-800">אֵילוּ תְּכוּנוֹת אֹפִי יֵשׁ לָרוּת עַל פִּי הַסִּפּוּר? (כִּתְבוּ 2 מִשְׁפָּטִים)</h4>
+                                <button onclick="readQuestion(5, this)" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-full hover:bg-amber-50 transition shrink-0" title="הַקְרֵא שְׁאֵלָה זוֹ">
+                                    <i class="fa-solid fa-volume-high text-lg"></i>
                                 </button>
                             </div>
                             
                             <!-- Drop Zone -->
                             <div id="q5" data-correct-id="ans5" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick('q5')" class="drop-zone border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[60px] bg-gray-50 flex items-center justify-center text-center font-medium text-gray-600 hover:border-amber-400 cursor-pointer">
-                                <span>לחצי כאן או גררי לכאן את התשובה</span>
+                                <span>לַחֲצִי כָּאן אוֹ גִּרְרִי לְכָאן אֶת הַתְּשׁוּבָה</span>
                             </div>
                             <div id="feedback-q5" class="hidden mt-2 text-sm font-bold text-center"></div>
                         </div>
@@ -227,67 +320,67 @@
             </section>
 
             <!-- DRAGGABLE CARDS (Right Side on wide screens / "Basket") -->
-            <section class="lg:col-span-5 lg:sticky lg:top-4 space-y-4">
+            <section class="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
                 <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-3xl border-2 border-amber-200 shadow-md">
                     <div class="flex items-center justify-between mb-4 border-b border-amber-200 pb-2">
                         <h3 class="text-xl font-bold text-amber-900 flex items-center gap-2">
-                            🧺 סַלְסִלַּת הַתְּשׁוּבוֹת
+                            <i class="fa-solid fa-basket-shopping text-amber-600"></i> סַלְסִלַּת הַתְּשׁוּבוֹת
                         </h3>
-                        <span class="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-md font-semibold">לחצי או גררי</span>
+                        <span class="text-xs bg-amber-200 text-amber-900 px-2.5 py-1 rounded-full font-bold">לַחֲצִי אוֹ גִּרְרִי</span>
                     </div>
 
-                    <p class="text-sm text-gray-600 mb-4">גון, קראי את הכרטיסיות (או לחצי על הרמקול לשמוע אותן), ואז התאימי אותן לשאלות מימין!</p>
+                    <p class="text-sm text-gray-600 mb-4">גּוֹן, קִרְאִי אֶת הַכַּרְטִיסִיּוֹת (אוֹ לַחֲצִי עַל הָרַמְקוֹל לִשְׁמֹעַ אוֹתָן), וְאָז הַתְאִימִי אוֹתָן לַשְּׁאֵלוֹת מִיָּמִין!</p>
 
                     <!-- Basket of draggable cards -->
-                    <div id="answers-basket" class="space-y-3 min-h-[200px] p-2 bg-white/50 rounded-2xl border border-dashed border-amber-200">
+                    <div id="answers-basket" class="space-y-3 min-h-[220px] p-2 bg-white/60 rounded-2xl border border-dashed border-amber-300">
                         
                         <!-- CARD 1 -->
-                        <div id="ans1" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans1')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-2">
+                        <div id="ans1" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans1')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-3">
                             <div class="flex-1">
-                                <p class="text-sm text-gray-800 font-medium">בִּגְלַל שֶׁהָיָה רָעָב כָּבֵד בְּאֶרֶץ יִשְׂרָאֵל, וְהוּא (שֶׁהָיָה עָשִׁיר) לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וּבָרַח לְמִשְׁפַּחְתּוֹ.</p>
+                                <p class="text-sm text-gray-800 font-medium leading-relaxed">בִּגְלַל שֶׁהָיָה רָעָב כָּבֵד בְּאֶרֶץ יִשְׂרָאֵל, וְהוּא (שֶׁהָיָה עָשִׁיר) לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וּבָרַח עִם מִשְׁפַּחְתּוֹ.</p>
                             </div>
-                            <button onclick="event.stopPropagation(); readText('בגלל שהיה רעב כבד בארץ ישראל, והוא שהיה עשיר לא רצה לעזור לעניים וברח עם משפחתו.')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 p-2 rounded-full text-xs shrink-0" title="הקראת תשובה">
-                                🔊
+                            <button onclick="event.stopPropagation(); readCard(1, this)" class="bg-amber-100 hover:bg-amber-200 text-amber-800 p-2.5 rounded-full text-xs shrink-0 transition" title="הַקְרָאַת תְּשׁוּבָה">
+                                <i class="fa-solid fa-volume-high text-sm"></i>
                             </button>
                         </div>
 
                         <!-- CARD 2 -->
-                        <div id="ans2" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans2')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-2">
+                        <div id="ans2" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans2')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-3">
                             <div class="flex-1">
-                                <p class="text-sm text-gray-800 font-medium">בְּאֶרֶץ מוֹאָב הַמִּשְׁפָּחָה אִבְּדָה אֶת כָּל הַכֶּסֶף שֶׁלָּהּ, וְגַם אֱלִימֶלֶךְ וּשְׁנֵי בָּנָיו מֵתוּ.</p>
+                                <p class="text-sm text-gray-800 font-medium leading-relaxed">בְּאֶרֶץ מוֹאָב הַמִּשְׁפָּחָה אִבְּדָה אֶת כָּל הַכֶּסֶף שֶׁלָּהּ, וְגַם אֱלִימֶלֶךְ וּשְׁנֵי בָּנָיו מֵתוּ.</p>
                             </div>
-                            <button onclick="event.stopPropagation(); readText('בארץ מואב המשפחה איבדה את כל הכסף שלה, וגם אלימלך ושני בניו מתו.')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 p-2 rounded-full text-xs shrink-0" title="הקראת תשובה">
-                                🔊
+                            <button onclick="event.stopPropagation(); readCard(2, this)" class="bg-amber-100 hover:bg-amber-200 text-amber-800 p-2.5 rounded-full text-xs shrink-0 transition" title="הַקְרָאַת תְּשׁוּבָה">
+                                <i class="fa-solid fa-volume-high text-sm"></i>
                             </button>
                         </div>
 
                         <!-- CARD 3 -->
-                        <div id="ans3" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans3')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-2">
-                            <div class="flex-1 bg-amber-50/50 p-1.5 rounded border border-amber-200/50">
+                        <div id="ans3" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans3')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-3">
+                            <div class="flex-1 bg-amber-50/70 p-2 rounded-lg border border-amber-200/60">
                                 <p class="text-sm text-amber-900 font-bold italic text-center">"עַמֵּךְ עַמִּי וֵאלֹהַיִךְ אֱלֹהָי"</p>
                             </div>
-                            <button onclick="event.stopPropagation(); readText('עמך עמי ואלוהייך אלוהי')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 p-2 rounded-full text-xs shrink-0" title="הקראת תשובה">
-                                🔊
+                            <button onclick="event.stopPropagation(); readCard(3, this)" class="bg-amber-100 hover:bg-amber-200 text-amber-800 p-2.5 rounded-full text-xs shrink-0 transition" title="הַקְרָאַת תְּשׁוּבָה">
+                                <i class="fa-solid fa-volume-high text-sm"></i>
                             </button>
                         </div>
 
                         <!-- CARD 4 -->
-                        <div id="ans4" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans4')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-2">
+                        <div id="ans4" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans4')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-3">
                             <div class="flex-1">
-                                <p class="text-sm text-gray-800 font-medium">הִיא הָלְכָה לַשָּׂדֶה כְּדֵי לְלַקֵּט (לֶאֱסוֹף מֵהָרִצְפָּה) שִׁבֳּלִים בּוֹדְדוֹת שֶׁנָּפְלוּ לַקּוֹצְרִים.</p>
+                                <p class="text-sm text-gray-800 font-medium leading-relaxed">הִיא הָלְכָה לַשָּׂדֶה כְּדֵי לְלַקֵּט (לֶאֱסוֹף מֵהָרִצְפָּה) שִׁבֳּלִים בּוֹדְדוֹת שֶׁנָּפְלוּ לַקּוֹצְרִים.</p>
                             </div>
-                            <button onclick="event.stopPropagation(); readText('היא הלכה לשדה כדי ללקט, לאסוף מהרצפה, שיבולים בודדות שנפלו לקוצרים.')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 p-2 rounded-full text-xs shrink-0" title="הקראת תשובה">
-                                🔊
+                            <button onclick="event.stopPropagation(); readCard(4, this)" class="bg-amber-100 hover:bg-amber-200 text-amber-800 p-2.5 rounded-full text-xs shrink-0 transition" title="הַקְרָאַת תְּשׁוּבָה">
+                                <i class="fa-solid fa-volume-high text-sm"></i>
                             </button>
                         </div>
 
                         <!-- CARD 5 -->
-                        <div id="ans5" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans5')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-2">
+                        <div id="ans5" draggable="true" ondragstart="drag(event)" onclick="handleCardSelect('ans5')" class="drag-card bg-white p-4 rounded-xl border-2 border-amber-100 shadow-sm hover:border-amber-400 hover:shadow-md transition duration-200 relative flex items-center justify-between gap-3">
                             <div class="flex-1">
-                                <p class="text-sm text-gray-800 font-medium">רוּת הִיא אִשָּׁה <span class="font-bold text-amber-800">טוֹבַת לֵב, נֶאֱמָנָה וּמְלֵאַת חֶסֶד</span>. הִיא לֹא עָזְבָה אֶת נָעֳמִי בִּשְׁעַת צָרָה וְדָאֲגָה לָהּ לְאֹכֶל בְּאַהֲבָה רַבָּה.</p>
+                                <p class="text-sm text-gray-800 font-medium leading-relaxed">רוּת הִיא אִשָּׁה <span class="font-bold text-amber-900 bg-amber-100 px-1 rounded">טוֹבַת לֵב, נֶאֱמָנָה וּמְלֵאַת חֶסֶד</span>. הִיא לֹא עָזְבָה אֶת נָעֳמִי בִּשְׁעַת צָרָה וְדָאֲגָה לָהּ לְאֹכֶל בְּאַהֲבָה רַבָּה.</p>
                             </div>
-                            <button onclick="event.stopPropagation(); readText('רות היא אישה טובת לב, נאמנה ומלאת חסד. היא לא עזבה את נעמי בשעת צרה ודאגה לה לאוכל באהבה רבה.')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 p-2 rounded-full text-xs shrink-0" title="הקראת תשובה">
-                                🔊
+                            <button onclick="event.stopPropagation(); readCard(5, this)" class="bg-amber-100 hover:bg-amber-200 text-amber-800 p-2.5 rounded-full text-xs shrink-0 transition" title="הַקְרָאַת תְּשׁוּבָה">
+                                <i class="fa-solid fa-volume-high text-sm"></i>
                             </button>
                         </div>
 
@@ -295,12 +388,12 @@
                 </div>
 
                 <!-- CELEBRATION BOX (Hidden until complete) -->
-                <div id="celebration-box" class="hidden bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 rounded-3xl shadow-xl text-center space-y-4 pulse-btn">
-                    <div class="text-4xl">👑🏆✨</div>
+                <div id="celebration-box" class="hidden bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 rounded-3xl shadow-xl text-center space-y-4 pulse-btn border-4 border-green-300">
+                    <div class="text-5xl">👑🏆✨</div>
                     <h3 class="text-2xl font-black">כָּל הַכָּבוֹד, גּוֹן הָאַלּוּפָה!</h3>
-                    <p class="text-sm text-green-100">פתרת את כל השאלות נכון ומילאת את המשימה של מגילת רות בהצלחה רבה!</p>
-                    <button onclick="resetApp()" class="bg-white text-green-700 font-bold px-6 py-2 rounded-full shadow hover:bg-green-50 transition w-full">
-                        🔄 רוצה לפתור שוב?
+                    <p class="text-sm text-green-100 font-medium">פָּתַרְתְּ אֶת כָּל הַשְּׁאֵלוֹת נָכוֹן וּמִילֵּאת אֶת הַמְּשִׂימָה שֶׁל מְגִילַּת רוּת בְּהַצְלָחָה רַבָּה!</p>
+                    <button onclick="resetApp()" class="bg-white text-green-700 hover:bg-green-50 font-bold px-6 py-2.5 rounded-full shadow-lg transition w-full flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i> רוֹצָה לִפְתּוֹר שׁוּב?
                     </button>
                 </div>
             </section>
@@ -309,56 +402,337 @@
 
     </main>
 
+    <!-- Footer Copyright -->
+    <footer class="text-center py-6 text-gray-500 text-sm mt-10 border-t border-gray-200">
+        <p>© כל הזכויות שמורות - נטלי דוד</p>
+    </footer>
+
     <!-- Custom Floating Alert/Feedback Dialog -->
-    <div id="custom-alert" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border-4 border-amber-400 space-y-4">
+    <div id="custom-alert" class="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border-4 border-amber-400 space-y-4 transform transition-all">
             <div id="alert-icon" class="text-5xl">🎉</div>
-            <h4 id="alert-title" class="text-2xl font-bold text-gray-800">כל הכבוד!</h4>
-            <p id="alert-message" class="text-gray-600">זהו המקום הנכון!</p>
-            <button onclick="closeAlert()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-full w-full shadow-md transition">
-                המשך במשימה
+            <h4 id="alert-title" class="text-2xl font-bold text-gray-800">כָּל הַכָּבוֹד!</h4>
+            <p id="alert-message" class="text-gray-600 font-medium">זֶהוּ הַמָּקוֹם הַנָּכוֹן!</p>
+            <button onclick="closeAlert()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-6 rounded-full w-full shadow-md transition">
+                הַמְשֵׁךְ בַּמְּשִׂימָה
             </button>
         </div>
     </div>
 
     <!-- Speech Synthesis & Interactive Logic -->
     <script>
+        // =========================================================================
         // App State
+        // =========================================================================
         let selectedCardId = null;
         let solvedCount = 0;
         const totalQuestions = 5;
-        
-        // Text-to-Speech Integration
-        function readText(text) {
-            if ('speechSynthesis' in window) {
-                // Cancel current speaking
-                window.speechSynthesis.cancel();
-                
-                // Hebrew voice synthesis configuration
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'he-IL';
-                utterance.rate = 0.9; // Slightly slower for children's comprehension
-                utterance.pitch = 1.0;
-                
-                window.speechSynthesis.speak(utterance);
+
+        // =========================================================================
+        // מנוע השמעה והקראה אנושית נשית (Human Female Voice TTS Engine)
+        // כולל: שליטה במהירות (האצה/האטה), כפתור עצירה מיידי, חלוקת משפטים ותמיכה בניקוד
+        // =========================================================================
+        let currentPlaybackSpeed = 0.8; // ברירת מחדל מותאמת ואיטית ללמידה בחינוך מיוחד
+        let activeAudio = null;
+        let activeUtterance = null;
+        let audioPlayQueue = [];
+        let currentQueueIndex = 0;
+        let femaleWebVoice = null;
+        let currentSpeakingBtn = null;
+        let isSpeakingActive = false;
+
+        // טעינת מהירות שמורה אם קיימת
+        try {
+            const savedSpeed = localStorage.getItem('shavuot_audio_speed');
+            if (savedSpeed) {
+                currentPlaybackSpeed = parseFloat(savedSpeed) || 0.8;
+            }
+        } catch (e) {}
+
+        // אתחול קול נשי אנושי עבור Web Speech API (למקרה של ניתוק רשת או מצב אופליין)
+        function initFemaleVoice() {
+            if (!('speechSynthesis' in window)) return;
+            const findVoice = () => {
+                const voices = window.speechSynthesis.getVoices();
+                const heVoices = voices.filter(v => /^(he|iw)([-_]|$)/i.test(v.lang));
+                // דירוג קולות נשיים איכותיים: הילה (Edge), כרמית (Apple), גוגל עברית נשית
+                const rank = v => {
+                    const n = (v.name || '').toLowerCase();
+                    let score = 0;
+                    if (/hila|הילה/i.test(n)) score += 20;
+                    if (/carmit|כרמית/i.test(n)) score += 18;
+                    if (/google/i.test(n)) score += 15;
+                    if (/natural|neural|online/i.test(n)) score += 10;
+                    if (/female|נשי|אישה/i.test(n)) score += 5;
+                    if (/asaf|אסף|male|גבר/i.test(n)) score -= 20; // סינון קול רובוטי גברי
+                    return score;
+                };
+                heVoices.sort((a, b) => rank(b) - rank(a));
+                femaleWebVoice = heVoices[0] || null;
+            };
+            findVoice();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = findVoice;
+            }
+        }
+        initFemaleVoice();
+
+        // עדכון UI של כפתורי המהירות
+        function updateSpeedButtonsUI(speed) {
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                const btnSpeed = parseFloat(btn.dataset.speed);
+                if (Math.abs(btnSpeed - speed) < 0.05) {
+                    btn.className = "speed-btn px-2.5 py-0.5 rounded-lg bg-amber-700 text-white font-extrabold text-xs transition shadow-sm border border-amber-300";
+                } else {
+                    btn.className = "speed-btn px-2 py-0.5 rounded-lg bg-white/20 hover:bg-white/30 text-white font-medium text-xs transition border border-white/20";
+                }
+            });
+        }
+
+        // שינוי מהירות ההקראה (האצה או האטה)
+        function setAudioSpeed(speed) {
+            currentPlaybackSpeed = speed;
+            if (activeAudio) {
+                activeAudio.playbackRate = speed;
+            }
+            try {
+                localStorage.setItem('shavuot_audio_speed', speed);
+            } catch (e) {}
+            updateSpeedButtonsUI(speed);
+        }
+
+        // חלוקת טקסט למשפטים קצרים (עד ~120 תווים למקטע) למניעת שגיאת 400 ב-Google TTS
+        function splitTextIntoSentences(text) {
+            if (!text) return [];
+            const clean = text.replace(/\s+/g, ' ').trim();
+            // פיצול לפי סימני פיסוק (נקודה, סימן שאלה, סימן קריאה, נקודה-פסיק)
+            const rawChunks = clean.split(/(?<=[.!?։;])\s+/);
+            const finalChunks = [];
+
+            rawChunks.forEach(chunk => {
+                if (!chunk.trim()) return;
+                // אם המקטע עדיין ארוך מדי, מפצלים גם לפי פסיק
+                if (chunk.length > 120) {
+                    const subChunks = chunk.split(/(?<=[,،])\s+/);
+                    subChunks.forEach(sub => {
+                        if (sub.trim()) finalChunks.push(sub.trim());
+                    });
+                } else {
+                    finalChunks.push(chunk.trim());
+                }
+            });
+
+            return finalChunks.length > 0 ? finalChunks : [clean];
+        }
+
+        // עדכון סטטוס ההקראה ב-UI
+        function setSpeakingUI(active, textPreview = '') {
+            isSpeakingActive = active;
+            const stopBtn = document.getElementById('stop-audio-btn');
+            const liveBanner = document.getElementById('tts-live-banner');
+            const liveText = document.getElementById('tts-live-text');
+
+            if (active) {
+                if (stopBtn) {
+                    stopBtn.className = "px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-extrabold transition shadow-md flex items-center gap-1.5 ring-4 ring-rose-300 animate-pulse border border-white";
+                }
+                if (liveBanner) {
+                    liveBanner.classList.remove('hidden');
+                    liveBanner.classList.add('flex');
+                }
+                if (liveText && textPreview) {
+                    liveText.innerText = "מַקְרִיאָה כָּעֵת: " + (textPreview.length > 45 ? textPreview.substring(0, 45) + "..." : textPreview);
+                }
             } else {
-                console.warn("Speech Synthesis is not supported in this browser.");
+                if (stopBtn) {
+                    stopBtn.className = "px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-sm flex items-center gap-1.5 border border-rose-400";
+                }
+                if (liveBanner) {
+                    liveBanner.classList.add('hidden');
+                    liveBanner.classList.remove('flex');
+                }
+                if (currentSpeakingBtn) {
+                    currentSpeakingBtn.classList.remove('speaking-active');
+                    currentSpeakingBtn = null;
+                }
+                document.querySelectorAll('.speaking-paragraph').forEach(el => el.classList.remove('speaking-paragraph'));
             }
         }
 
-        // Read the entire story
-        function readStory() {
-            const paragraphs = [
-                "שנים רבות לפני שנולד דוד המלך, היה רעב כבד בארץ ישראל. לאנשים לא היה מה לאכול.",
-                "איש עשיר אחד מבית לחם, שקראו לו אלימלך, לא רצה לעזור לעניים ונעל את השערים שלו. הוא לקח את אשתו נעמי ואת שני בניו, וברח לארץ מואב השכנה.",
-                "בארץ מואב המשפחה איבדה את כל הכסף שלה, וגם אלימלך והבנים מתו. נעמי נשארה לבדה בארץ זרה והייתה עצובה מאוד.",
-                "הכלה שלה, רות, אהבה אותה מאוד וסירבה לעזוב אותה. רות אמרה לנעמי מילים יפות של נאמנות: עמך עמי ואלוהייך אלוהי – כלומר, אני הולכת איתך לכל מקום ולא אעזוב אותך בצררה.",
-                "השתיים חזרו יחד לעיר בית לחם בתחילת קציר החיטים. בגלל שלא היה להן אוכל בבית, רות הלכה לשדה החקלאי כדי ללקט, לאסוף מהרצפה, שיבולים בודדות שנפלו לקוצרים. רות עשתה חסד גדול מאוד עם חמותה נעמי."
-            ];
-            readText(paragraphs.join(" "));
+        // עצירה מוחלטת ומיידית של כל השמעה קולית
+        function stopAudioPlayback() {
+            if (activeAudio) {
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio.onended = null;
+                activeAudio.onerror = null;
+                activeAudio = null;
+            }
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            activeUtterance = null;
+            audioPlayQueue = [];
+            currentQueueIndex = 0;
+            setSpeakingUI(false);
         }
 
-        // --- Drag and Drop Logic ---
+        // פונקציית ההקראה המרכזית (קול נשי אנושי עם חלוקה למשפטים)
+        function readText(text, btnElement = null) {
+            stopAudioPlayback();
+            if (!text || !text.trim()) return;
+
+            if (btnElement) {
+                currentSpeakingBtn = btnElement;
+                currentSpeakingBtn.classList.add('speaking-active');
+            }
+
+            audioPlayQueue = splitTextIntoSentences(text);
+            currentQueueIndex = 0;
+            setSpeakingUI(true, audioPlayQueue[0]);
+
+            playNextAudioQueueItem();
+        }
+
+        // השמעת המקטע הבא בתור
+        function playNextAudioQueueItem() {
+            if (currentQueueIndex >= audioPlayQueue.length) {
+                stopAudioPlayback();
+                return;
+            }
+
+            const currentText = audioPlayQueue[currentQueueIndex];
+            const liveText = document.getElementById('tts-live-text');
+            if (liveText) {
+                liveText.innerText = "מַקְרִיאָה כָּעֵת: " + (currentText.length > 45 ? currentText.substring(0, 45) + "..." : currentText);
+            }
+
+            const encoded = encodeURIComponent(currentText);
+            const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encoded}`;
+
+            try {
+                activeAudio = new Audio(googleTtsUrl);
+                activeAudio.playbackRate = currentPlaybackSpeed;
+
+                activeAudio.onended = () => {
+                    currentQueueIndex++;
+                    playNextAudioQueueItem();
+                };
+
+                activeAudio.onerror = () => {
+                    // גיבוי ל-Web Speech API אם Google TTS נכשל (למשל בהעדר חיבור אינטרנט)
+                    playWebSpeechFallback(currentText, () => {
+                        currentQueueIndex++;
+                        playNextAudioQueueItem();
+                    });
+                };
+
+                const playPromise = activeAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(err => {
+                        console.warn("Audio play blocked or offline, switching to Web Speech fallback:", err);
+                        playWebSpeechFallback(currentText, () => {
+                            currentQueueIndex++;
+                            playNextAudioQueueItem();
+                        });
+                    });
+                }
+            } catch (err) {
+                playWebSpeechFallback(currentText, () => {
+                    currentQueueIndex++;
+                    playNextAudioQueueItem();
+                });
+            }
+        }
+
+        // גיבוי קולי בקול נשי עברי ב-Web Speech API
+        function playWebSpeechFallback(text, onEndCallback) {
+            if (!('speechSynthesis' in window)) {
+                if (onEndCallback) onEndCallback();
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'he-IL';
+            utterance.rate = currentPlaybackSpeed;
+            if (femaleWebVoice) {
+                utterance.voice = femaleWebVoice;
+            }
+            utterance.onend = () => {
+                activeUtterance = null;
+                if (onEndCallback) onEndCallback();
+            };
+            utterance.onerror = () => {
+                activeUtterance = null;
+                if (onEndCallback) onEndCallback();
+            };
+            activeUtterance = utterance;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // =========================================================================
+        // פונקציות הקראה ייעודיות לחלקי הדף
+        // =========================================================================
+
+        // הקראת הוראות הפתיחה
+        function readInstructions() {
+            const instr = "שָׁלוֹם גּוֹן! קִרְאִי אֶת הַסִּפּוּר, הַקְשִׁיבִי לַשְּׁאֵלוֹת וְגִרְרִי אֶת הַתְּשׁוּבוֹת הַנְּכוֹנוֹת לִמְקוֹמָן! בְּהַצְלָחָה!";
+            readText(instr);
+        }
+
+        // מאגר פסקאות הסיפור עם ניקוד מדויק
+        const STORY_PARAGRAPHS = [
+            "שָׁנִים רַבּוֹת לִפְנֵי שֶׁנּוֹלַד דָּוִד הַמֶּלֶךְ, הָיָה רָעָב כָּבֵד בְּאֶרֶץ יִשְׂרָאֵל. לָאֲנָשִׁים לֹא הָיָה מָה לֶאֱכֹל.",
+            "אִישׁ עָשִׁיר אֶחָד מִבֵּית לֶחֶם, שֶׁקָּרְאוּ לוֹ אֱלִימֶלֶךְ, לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וְנָעַל אֶת הַשְּׁעָרִים שֶׁלּוֹ. הוּא לָקַח אֶת אִשְׁתּוֹ נָעֳמִי וְאֶת שְׁנֵי בָּנָיו, וּבָרַח לְאֶרֶץ מוֹאָב הַשְּׁכֵנָה.",
+            "בְּאֶרֶץ מוֹאָב הַמִּשְׁפָּחָה אִבְּדָה אֶת כָּל הַכֶּסֶף שֶׁלָּהּ, וְגַם אֱלִימֶלֶךְ וְהַבָּנִים מֵתוּ. נָעֳמִי נִשְׁאֲרָה לְבַדָּהּ בְּאֶרֶץ זָרָה וְהָיְתָה עֲצוּבָה מְאֹד.",
+            "הַכַּלָּה שֶׁלָּהּ, רוּת, אָהֲבָה אוֹתָהּ מְאֹד וְסֵירְבָה לַעֲזוֹב אוֹתָהּ. רוּת אָמְרָה לְנָעֳמִי מִילִּים יָפוֹת שֶׁל נֶאֱמָנוּת: עַמֵּךְ עַמִּי וֵאלֹהַיִךְ אֱלֹהָי – כְּלוֹמַר, אֲנִי הוֹלֶכֶת אִתָּךְ לְכָל מָקוֹם וְלֹא אֶעֱזוֹב אוֹתָךְ בַּצָּרָה.",
+            "הַשְּׁתַּיִם חָזְרוּ יַחַד לָעִיר בֵּית לֶחֶם בִּתְחִלַּת קְצִיר הַחִטִּים. בִּגְלַל שֶׁלֹּא הָיָה לָהֶן אֹכֶל בַּבַּיִת, רוּת הָלְכָה לַשָּׂדֶה הַחַקְלָאִי כְּדֵי לְלַקֵּט, לֶאֱסוֹף מֵהָרִצְפָּה, שִׁבֳּלִים בּוֹדְדוֹת שֶׁנָּפְלוּ לַקּוֹצְרִים. רוּת עָשְׂתָה חֶסֶד גָּדוֹל מְאֹד עִם חֲמוֹתָהּ נָעֳמִי."
+        ];
+
+        // הקראת פסקה בודדת מתוך הסיפור
+        function readParagraph(num, btn) {
+            document.querySelectorAll('.speaking-paragraph').forEach(el => el.classList.remove('speaking-paragraph'));
+            const pEl = document.getElementById(`story-p-${num}`);
+            if (pEl) pEl.classList.add('speaking-paragraph');
+            
+            readText(STORY_PARAGRAPHS[num - 1], btn);
+        }
+
+        // הקראת כל הסיפור ברצף
+        function readStory() {
+            const btn = document.getElementById('read-story-btn');
+            readText(STORY_PARAGRAPHS.join(" "), btn);
+        }
+
+        // מאגר שאלות מנוקד
+        const QUESTIONS_TEXT = {
+            1: "מַדּוּעַ עָזַב אֱלִימֶלֶךְ אֶת אֶרֶץ יִשְׂרָאֵל וְעָבַר לְאֶרֶץ מוֹאָב?",
+            2: "מָה קָרָה לְאֱלִימֶלֶךְ וְלִשְׁנֵי בָּנָיו בְּאֶרֶץ מוֹאָב?",
+            3: "הַעְתִּיקוּ מֵהַטֶּקְסְט אֶת הַמִּשְׁפָּט הַמְּפוּרְסָם שֶׁאָמְרָה רוּת לְנָעֳמִי כְּדֵי לְהַרְאוֹת לָהּ שֶׁהִיא נֶאֱמָנָה לָהּ.",
+            4: "מָה עָשְׂתָה רוּת בַּשָּׂדֶה כְּדֵי שֶׁיִּהְיֶה לָהּ וּלְנָעֳמִי מָה לֶאֱכֹל?",
+            5: "אֵילוּ תְּכוּנוֹת אֹפִי יֵשׁ לָרוּת עַל פִּי הַסִּפּוּר?"
+        };
+
+        function readQuestion(num, btn) {
+            readText(QUESTIONS_TEXT[num], btn);
+        }
+
+        // מאגר תשובות מנוקד
+        const CARDS_TEXT = {
+            1: "בִּגְלַל שֶׁהָיָה רָעָב כָּבֵד בְּאֶרֶץ יִשְׂרָאֵל, וְהוּא (שֶׁהָיָה עָשִׁיר) לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וּבָרַח עִם מִשְׁפַּחְתּוֹ.",
+            2: "בְּאֶרֶץ מוֹאָב הַמִּשְׁפָּחָה אִבְּדָה אֶת כָּל הַכֶּסֶף שֶׁלָּהּ, וְגַם אֱלִימֶלֶךְ וּשְׁנֵי בָּנָיו מֵתוּ.",
+            3: "עַמֵּךְ עַמִּי וֵאלֹהַיִךְ אֱלֹהָי.",
+            4: "הִיא הָלְכָה לַשָּׂדֶה כְּדֵי לְלַקֵּט (לֶאֱסוֹף מֵהָרִצְפָּה) שִׁבֳּלִים בּוֹדְדוֹת שֶׁנָּפְלוּ לַקּוֹצְרִים.",
+            5: "רוּת הִיא אִשָּׁה טוֹבַת לֵב, נֶאֱמָנָה וּמְלֵאַת חֶסֶד. הִיא לֹא עָזְבָה אֶת נָעֳמִי בִּשְׁעַת צָרָה וְדָאֲגָה לָהּ לְאֹכֶל בְּאַהֲבָה רַבָּה."
+        };
+
+        function readCard(num, btn) {
+            readText(CARDS_TEXT[num], btn);
+        }
+
+        // =========================================================================
+        // Drag and Drop Logic
+        // =========================================================================
         function allowDrop(ev) {
             ev.preventDefault();
         }
@@ -369,7 +743,7 @@
         }
 
         document.addEventListener("dragend", function(event) {
-            if (event.target.classList.contains('drag-card')) {
+            if (event.target.classList && event.target.classList.contains('drag-card')) {
                 event.target.classList.remove('opacity-50');
             }
         });
@@ -379,20 +753,20 @@
             const data = ev.dataTransfer.getData("text");
             const draggedElement = document.getElementById(data);
             
-            // Get the drop target zone
             let targetZone = ev.target;
             while (targetZone && !targetZone.classList.contains('drop-zone')) {
                 targetZone = targetZone.parentElement;
             }
 
-            if (targetZone) {
+            if (targetZone && draggedElement) {
                 evaluatePlacement(draggedElement, targetZone);
             }
         }
 
-        // --- Mobile Friendly Tap to Match Logic ---
+        // =========================================================================
+        // Mobile Friendly Tap to Match Logic
+        // =========================================================================
         function handleCardSelect(cardId) {
-            // Deselect previous
             if (selectedCardId) {
                 const prev = document.getElementById(selectedCardId);
                 if (prev) prev.classList.remove('ring-4', 'ring-amber-400', 'scale-105');
@@ -402,7 +776,6 @@
             const current = document.getElementById(cardId);
             if (current) {
                 current.classList.add('ring-4', 'ring-amber-400', 'scale-105');
-                // Read out loud when selected
                 const btn = current.querySelector('button');
                 if (btn) btn.click();
             }
@@ -410,64 +783,63 @@
 
         function handleZoneClick(zoneId) {
             const zone = document.getElementById(zoneId);
-            
-            // If the zone is already solved, do nothing
-            if (zone.dataset.solved === "true") return;
+            if (!zone || zone.dataset.solved === "true") return;
 
             if (selectedCardId) {
                 const card = document.getElementById(selectedCardId);
                 evaluatePlacement(card, zone);
                 
-                // Deselect card
-                card.classList.remove('ring-4', 'ring-amber-400', 'scale-105');
+                if (card) {
+                    card.classList.remove('ring-4', 'ring-amber-400', 'scale-105');
+                }
                 selectedCardId = null;
             } else {
-                // If no card was selected, read the question
-                const btn = zone.previousElementSibling ? zone.previousElementSibling.querySelector('button') : null;
-                if (btn) btn.click();
+                const num = zoneId.replace('q', '');
+                if (QUESTIONS_TEXT[num]) {
+                    readText(QUESTIONS_TEXT[num]);
+                }
             }
         }
 
-        // --- Core Answer Evaluation ---
+        // =========================================================================
+        // Core Answer Evaluation
+        // =========================================================================
         function evaluatePlacement(cardElement, zoneElement) {
             const expectedId = zoneElement.dataset.correctId;
             const feedbackElement = document.getElementById('feedback-' + zoneElement.id);
 
             if (cardElement.id === expectedId) {
-                // CORRECT!
-                zoneElement.innerHTML = `<div class="bg-green-100 text-green-800 font-medium p-2 rounded-lg w-full text-center flex items-center justify-center gap-2">
-                    ✅ ${cardElement.querySelector('p').innerHTML}
+                // תשובה נכונה!
+                zoneElement.innerHTML = `<div class="bg-green-100 text-green-900 font-bold p-3 rounded-xl w-full text-center flex items-center justify-center gap-2 border border-green-300 shadow-sm">
+                    <i class="fa-solid fa-circle-check text-green-600 text-lg"></i>
+                    <span>${cardElement.querySelector('p').innerHTML}</span>
                 </div>`;
                 
-                // Stylings
                 zoneElement.classList.remove('border-dashed', 'border-gray-300', 'bg-gray-50', 'hover:border-amber-400');
                 zoneElement.classList.add('border-solid', 'border-green-500', 'bg-green-50');
                 zoneElement.dataset.solved = "true";
                 
-                // Hide original card
                 cardElement.style.display = "none";
                 
-                // Positive feedback
                 feedbackElement.classList.remove('hidden', 'text-red-500');
                 feedbackElement.classList.add('text-green-600');
                 feedbackElement.innerText = "נָכוֹן מְאֹד! כָּל הַכָּבוֹד! 🎉";
                 
-                showCustomAlert("🌈 נכון מאוד!", "כל הכבוד, גון! הנחת את כרטיסיית החסד במקום הנכון!", "🎉");
-                readText("נכון מאוד! כל הכבוד, גון!");
+                showCustomAlert("🌈 נָכוֹן מְאֹד!", "כָּל הַכָּבוֹד, גּוֹן! הִנַּחַתְּ אֶת כַּרְטִיסִיַּת הַחֶסֶד בַּמָּקוֹם הַנָּכוֹן!", "🎉");
+                readText("נָכוֹן מְאֹד! כָּל הַכָּבוֹד, גּוֹן!");
                 
                 solvedCount++;
                 updateProgress();
 
             } else {
-                // INCORRECT
+                // תשובה לא נכונה
                 feedbackElement.classList.remove('hidden', 'text-green-600');
                 feedbackElement.classList.add('text-red-500');
                 feedbackElement.innerText = "נַסִּי שׁוּב! זֶה לֹא מַתְאִים לַשְּׁאֵלָה הַזֹּאת.";
                 
-                showCustomAlert("🤔 נסי שוב", "לא נורא, קראי שוב את השאלה וכרטיסיית התשובה ונסי להתאים פעם נוספת!", "💡");
-                readText("נסי שוב, גון, את יכולה להצליח!");
+                showCustomAlert("🤔 נַסִּי שׁוּב", "לֹא נוֹרָא, קִרְאִי שׁוּב אֶת הַשְּׁאֵלָה וְאֶת כַּרְטִיסִיַּת הַתְּשׁוּבָה וְנַסִּי לְהַתְאִים פַּעַם נוֹסֶפֶת!", "💡");
+                readText("נַסִּי שׁוּב, גּוֹן, אַתְּ יְכוֹלָה לְהַצְלִיחַ!");
                 
-                // Shake effect on drop zone
                 zoneElement.classList.add('animate-bounce');
                 setTimeout(() => {
                     zoneElement.classList.remove('animate-bounce');
@@ -475,25 +847,35 @@
             }
         }
 
-        // --- UI Updates ---
+        // =========================================================================
+        // UI Updates & Progress
+        // =========================================================================
         function updateProgress() {
             const bar = document.getElementById('progress-bar');
             const txt = document.getElementById('score-text');
             const percent = (solvedCount / totalQuestions) * 100;
             
             bar.style.width = percent + '%';
-            txt.innerText = `${solvedCount} מתוך ${totalQuestions} שאלות פתורות`;
+            txt.innerText = `${solvedCount} מִתּוֹךְ ${totalQuestions} שְׁאֵלוֹת פְּתוּרוֹת`;
 
             if (solvedCount === totalQuestions) {
                 document.getElementById('celebration-box').classList.remove('hidden');
+                
+                // אפקט קונפטי חגיגי
+                try {
+                    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+                } catch(e) {}
+
                 setTimeout(() => {
-                    showCustomAlert("👑 אלופה מנצחת!", "גון, סיימת את כל המשימה בצורה מושלמת! את פשוט נהדרת!", "🏆");
-                    readText("כל הכבוד גון האלופה! פתרת את כל השאלות נכון ומילאת את המשימה בהצלחה רבה!");
-                }, 800);
+                    showCustomAlert("👑 אַלּוּפָה מְנַצַּחַת!", "גּוֹן, סִיַּימְתְּ אֶת כָּל הַמְּשִׂימָה בְּצוּרָה מוּשְׁלֶמֶת! אַתְּ פָּשׁוּט נֶהֱדֶרֶת!", "🏆");
+                    readText("כָּל הַכָּבוֹד גּוֹן הָאַלּוּפָה! פָּתַרְתְּ אֶת כָּל הַשְּׁאֵלוֹת נָכוֹן וּמִילֵּאת אֶת הַמְּשִׂימָה בְּהַצְלָחָה רַבָּה!");
+                }, 600);
             }
         }
 
-        // --- Custom Alert Modals ---
+        // =========================================================================
+        // Custom Alert Modals
+        // =========================================================================
         function showCustomAlert(title, message, icon) {
             document.getElementById('alert-title').innerText = title;
             document.getElementById('alert-message').innerText = message;
@@ -505,37 +887,38 @@
             document.getElementById('custom-alert').classList.add('hidden');
         }
 
-        // --- Reset App to Start Over ---
+        // =========================================================================
+        // Reset App to Start Over
+        // =========================================================================
         function resetApp() {
+            stopAudioPlayback();
             solvedCount = 0;
             selectedCardId = null;
             
             // Re-render drop zones
-            const zones = [
-                {id: 'q1', text: 'מדוע עזב אלימלך את ארץ ישראל ועבר לארץ מואב?'},
-                {id: 'q2', text: 'מה קרה לאלימלך ולשני בניו בארץ מואב?'},
-                {id: 'q3', text: 'העתיקו מהטקסט את המשפט המפורסם שאמרה רות לנעמי.'},
-                {id: 'q4', text: 'מה עשתה רות בשדה כדי שיהיה לה ולנעמי מה לאכול?'},
-                {id: 'q5', text: 'אילו תכונות אופי יש לרות על פי הסיפור?'}
-            ];
-
-            zones.forEach(z => {
-                const el = document.getElementById(z.id);
-                el.innerHTML = '<span>לחצי כאן או גררי לכאן את התשובה</span>';
-                el.className = "drop-zone border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[60px] bg-gray-50 flex items-center justify-center text-center font-medium text-gray-600 hover:border-amber-400 cursor-pointer";
-                el.dataset.solved = "false";
-                
-                const feedback = document.getElementById('feedback-' + z.id);
-                feedback.classList.add('hidden');
-                feedback.innerText = "";
+            const zones = ['q1', 'q2', 'q3', 'q4', 'q5'];
+            zones.forEach(zId => {
+                const el = document.getElementById(zId);
+                if (el) {
+                    el.innerHTML = '<span>לַחֲצִי כָּאן אוֹ גִּרְרִי לְכָאן אֶת הַתְּשׁוּבָה</span>';
+                    el.className = "drop-zone border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[60px] bg-gray-50 flex items-center justify-center text-center font-medium text-gray-600 hover:border-amber-400 cursor-pointer";
+                    el.dataset.solved = "false";
+                }
+                const feedback = document.getElementById('feedback-' + zId);
+                if (feedback) {
+                    feedback.classList.add('hidden');
+                    feedback.innerText = "";
+                }
             });
 
             // Show all drag cards
             const cards = ['ans1', 'ans2', 'ans3', 'ans4', 'ans5'];
             cards.forEach(c => {
                 const el = document.getElementById(c);
-                el.style.display = "flex";
-                el.classList.remove('ring-4', 'ring-amber-400', 'scale-105');
+                if (el) {
+                    el.style.display = "flex";
+                    el.classList.remove('ring-4', 'ring-amber-400', 'scale-105');
+                }
             });
 
             // Hide celebration
@@ -544,8 +927,13 @@
             // Progress reset
             updateProgress();
             
-            readText("המשימה אותחלה מחדש. בהצלחה גון!");
+            readText("הַמְּשִׂימָה אוּתְחֲלָה מֵחָדָשׁ. בְּהַצְלָחָה גּוֹן!");
         }
+
+        // אתחול UI בטעינת הדף
+        document.addEventListener('DOMContentLoaded', () => {
+            updateSpeedButtonsUI(currentPlaybackSpeed);
+        });
     </script>
 </body>
 </html>
