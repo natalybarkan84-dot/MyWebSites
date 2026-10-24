@@ -823,11 +823,11 @@
             },
             {
                 id: "game_07",
-                title: "משימה מותאמת לשבועות (גון)",
-                description: "דף עבודה אינטראקטיבי דיפרנציאלי מותאם לתלמידת ASD (רמת פרח) עם מנגנון הקראה קולית מובנה ורמזים.",
+                title: "משימה אינטראקטיבית לשבועות - מגילת רות",
+                description: "דף עבודה אינטראקטיבי לסיפור מגילת רות (רמת פרח) עם משימות התאמה בגרירה, מנגנון הקראה קולית מובנה ומשוב מיידי.",
                 category: "חינוך מיוחד ודיפרנציאלי",
                 tags: ["חינוך מיוחד", "רמת פרח", "שבועות", "הקראה קולית"],
-                fileUrl: "משחקים AI נטלי דוד/משימה לשבועות- גון.HTML",
+                fileUrl: "משחקים AI נטלי דוד/משימה לשבועות.HTML",
                 teacherUrl: "",
                 status: "public",
                 pinCode: "",
@@ -941,6 +941,17 @@
             if (savedGames) {
                 try {
                     games = JSON.parse(savedGames);
+                    // Migrate renamed Shavuot game if old entry exists in localStorage
+                    let migrated = false;
+                    games.forEach(g => {
+                        if (g.id === "game_07" || (g.fileUrl && g.fileUrl.includes("משימה לשבועות- גון"))) {
+                            g.title = "משימה אינטראקטיבית לשבועות - מגילת רות";
+                            g.description = "דף עבודה אינטראקטיבי לסיפור מגילת רות (רמת פרח) עם משימות התאמה בגרירה, מנגנון הקראה קולית מובנה ומשוב מיידי.";
+                            g.fileUrl = "משחקים AI נטלי דוד/משימה לשבועות.HTML";
+                            migrated = true;
+                        }
+                    });
+                    if (migrated) saveGamesLocally();
                 } catch(e) {
                     games = [...DEFAULT_SEED_GAMES];
                 }
