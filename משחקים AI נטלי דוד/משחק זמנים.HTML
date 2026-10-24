@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>מכונת הזמן של הבינה המלאכותית</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -147,8 +148,20 @@
             </div>
         </div>
 
-        <!-- Level Tracker & Score -->
-        <div class="flex items-center gap-4">
+        <!-- Level Tracker & Audio Controls -->
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Audio Speed & Stop Toolbar -->
+            <div class="bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-volume-high text-sky-400 text-xs"></i>
+                <span class="text-xs text-slate-300 font-bold ml-1">מהירות:</span>
+                <button onclick="setAudioSpeed(0.8)" id="speed-08" class="speed-btn px-2 py-0.5 rounded text-xs text-slate-300 hover:bg-slate-700 transition">0.8x</button>
+                <button onclick="setAudioSpeed(1.0)" id="speed-1" class="speed-btn px-2 py-0.5 rounded text-xs bg-sky-500 text-slate-950 font-bold transition">1x</button>
+                <button onclick="setAudioSpeed(1.25)" id="speed-125" class="speed-btn px-2 py-0.5 rounded text-xs text-slate-300 hover:bg-slate-700 transition">1.25x</button>
+                <button onclick="stopAudioPlayback()" class="bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-0.5 rounded-lg text-xs font-bold shadow flex items-center gap-1 transition mr-1" title="עצור הקראה">
+                    <i class="fa-solid fa-stop"></i> עצור
+                </button>
+            </div>
+
             <div class="bg-slate-800/90 px-4 py-2 rounded-xl border border-slate-700 flex items-center gap-2">
                 <span class="text-xs text-slate-400">שלב:</span>
                 <span id="levelIndicator" class="font-bold text-sky-400 text-sm sm:text-base">1 מתוך 2</span>
@@ -165,7 +178,15 @@
             <!-- Instructions Header -->
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-700/60 pb-5">
                 <div>
-                    <span class="bg-sky-500/10 text-sky-400 text-xs font-bold px-3 py-1 rounded-full border border-sky-500/30">משימה 1</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="bg-sky-500/10 text-sky-400 text-xs font-bold px-3 py-1 rounded-full border border-sky-500/30">משימה 1</span>
+                        <button onclick="speakHebrew('משימה 1: איתור עשרת הפעלים בטקסט. קראו את הטקסט, זהו את עשרת הפעלים ולחצו עליהם בתוך הטקסט בלבד.')" class="bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-bold px-3 py-1 rounded-full border border-sky-500/30 flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-volume-high"></i> הקרא הוראות
+                        </button>
+                        <button onclick="readFullPassage()" class="bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-extrabold px-3.5 py-1 rounded-full shadow flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-book-open-reader"></i> הקראת הטקסט המלא
+                        </button>
+                    </div>
                     <h2 class="text-xl sm:text-2xl font-bold mt-2 text-white">איתור 10 הפעלים בטקסט</h2>
                     <p class="text-sm text-slate-300 mt-1">קראו את הטקסט, זהו את **10 הפעלים** ולחצו עליהם בתוך הטקסט בלבד.</p>
                 </div>
@@ -211,7 +232,12 @@
             <!-- Instructions Header -->
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-700/60 pb-5">
                 <div>
-                    <span class="bg-purple-500/10 text-purple-400 text-xs font-bold px-3 py-1 rounded-full border border-purple-500/30">משימה 2</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="bg-purple-500/10 text-purple-400 text-xs font-bold px-3 py-1 rounded-full border border-purple-500/30">משימה 2</span>
+                        <button onclick="speakHebrew('משימה 2: מיון הפעלים על ציר הזמן. גררו כל פועל לזמן המתאים: עבר, הווה או עתיד, או לחצו על פועל ואז לחצו על הזמן המתאים על הלוח.')" class="bg-slate-800 hover:bg-slate-700 text-purple-300 text-xs font-bold px-3 py-1 rounded-full border border-purple-500/30 flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-volume-high"></i> הקרא הוראות
+                        </button>
+                    </div>
                     <h2 class="text-xl sm:text-2xl font-bold mt-2 text-white">מיון הפעלים על ציר הזמן</h2>
                     <p class="text-sm text-slate-300 mt-1">גררו כל פועל לזמן המתאים, או לחצו על פועל ואז לחצו על הזמן המתאים על הלוח.</p>
                 </div>
@@ -464,6 +490,133 @@
         const audio = new SoundEffects();
 
         /* =============================================================
+           2B. HUMAN FEMALE TTS ENGINE (Google Translate TTS + Fallback)
+           ============================================================= */
+        let activeAudio = null;
+        let audioPlayQueue = [];
+        let currentPlaybackSpeed = 1.0;
+
+        const fullPassageVocalized = "בִּשְׁנַת 1950 פִּיתֵּחַ הַמָּתֵמָטִיקַאי אַלַן טְיוּרִינְג אֶת מִבְחַן טְיוּרִינְג, חָקַר חֲשִׁיבָה מְמוּחְשֶׁבֶת וְאִימֵּן מְכוֹנָה רִאשׁוֹנָה. כַּיּוֹם מַדְעָנִים מְשַׁכְלְלִים טֶכְנוֹלוֹגְיוֹת שֶׁל בִּינָה מְלָאכוּתִית, מְחַבְּרִים אוֹתָן לְמַאַגְרֵי מֵידָע עֲנָקִיִּים וְיוֹצְרִים מוֹדֶלִים שֶׁמְּבִינִים שָׂפָה אֱנוֹשִׁית. בַּשָּׁנִים הַקְּרוֹבוֹת אַלְגּוֹרִיתְמִים אֵלּוּ יִפְתְּרוּ בְּעָיוֹת רְפוּאִיּוֹת מוּרְכָּבוֹת, יְקַדְּמוּ אֶת הַמַּדָּע וִינַוְּוטוּ חֲלָלִיּוֹת לְמֶרְחֲבֵי הַקּוֹסְמוֹס.";
+
+        const verbsVocalized = {
+            "פיתח": "פִּיתֵּחַ",
+            "חקר": "חָקַר",
+            "אימן": "אִימֵּן",
+            "משכללים": "מְשַׁכְלְלִים",
+            "מחברים": "מְחַבְּרִים",
+            "יוצרים": "יוֹצְרִים",
+            "מבינים": "מְבִינִים",
+            "יפתרו": "יִפְתְּרוּ",
+            "יקדמו": "יְקַדְּמוּ",
+            "ינווטו": "יְנַוְּוטוּ"
+        };
+
+        function splitTextForTTS(text) {
+            const clean = text.replace(/\s+/g, ' ').trim();
+            if (clean.length <= 130) return [clean];
+            const rawSentences = clean.split(/(?<=[.!?։;])\s+/);
+            const chunks = [];
+            for (const s of rawSentences) {
+                if (!s.trim()) continue;
+                if (s.length <= 130) {
+                    chunks.push(s.trim());
+                } else {
+                    const subParts = s.split(/(?<=[,،–-])\s+/);
+                    let current = "";
+                    for (const part of subParts) {
+                        if ((current + " " + part).trim().length <= 130) {
+                            current = (current + " " + part).trim();
+                        } else {
+                            if (current) chunks.push(current);
+                            current = part.trim();
+                        }
+                    }
+                    if (current) chunks.push(current);
+                }
+            }
+            return chunks.length > 0 ? chunks : [clean];
+        }
+
+        function speakHebrew(text) {
+            stopAudioPlayback();
+            if (!text || !text.trim()) return;
+            const spoken = verbsVocalized[text.trim()] || text.trim();
+            audioPlayQueue = splitTextForTTS(spoken);
+            playNextInQueue();
+        }
+
+        function readFullPassage() {
+            speakHebrew(fullPassageVocalized);
+        }
+
+        function playNextInQueue() {
+            if (audioPlayQueue.length === 0) {
+                activeAudio = null;
+                return;
+            }
+            const chunk = audioPlayQueue.shift();
+            const encodedText = encodeURIComponent(chunk);
+            const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
+
+            try {
+                activeAudio = new Audio();
+                activeAudio.referrerPolicy = "no-referrer";
+                activeAudio.src = googleTtsUrl;
+                activeAudio.playbackRate = currentPlaybackSpeed;
+
+                let fallbackUsed = false;
+                const triggerFallback = () => {
+                    if (fallbackUsed) return;
+                    fallbackUsed = true;
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        const u = new SpeechSynthesisUtterance(chunk);
+                        u.lang = 'he-IL';
+                        u.rate = currentPlaybackSpeed;
+                        u.pitch = 1.2;
+                        u.onend = () => playNextInQueue();
+                        window.speechSynthesis.speak(u);
+                    }
+                };
+
+                activeAudio.onended = () => playNextInQueue();
+                activeAudio.onerror = triggerFallback;
+                const playPromise = activeAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(triggerFallback);
+                }
+            } catch (e) {}
+        }
+
+        function stopAudioPlayback() {
+            audioPlayQueue = [];
+            if (activeAudio) {
+                activeAudio.onended = null;
+                activeAudio.onerror = null;
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+            }
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function setAudioSpeed(speed) {
+            currentPlaybackSpeed = speed;
+            if (activeAudio) {
+                activeAudio.playbackRate = speed;
+            }
+            document.querySelectorAll('.speed-btn').forEach(el => {
+                el.className = "speed-btn px-2 py-0.5 rounded text-xs text-slate-300 hover:bg-slate-700 transition";
+            });
+            const speedBtn = document.getElementById(`speed-${speed.toString().replace('.', '')}`);
+            if (speedBtn) {
+                speedBtn.className = "speed-btn px-2 py-0.5 rounded text-xs bg-sky-500 text-slate-950 font-bold transition";
+            }
+        }
+
+        /* =============================================================
            3. INITIALIZATION & SCREEN 1 LOGIC
            ============================================================= */
         window.onload = function() {
@@ -613,7 +766,12 @@
 
             card.innerHTML = `
                 <span>${verb.cleanVerb}</span>
-                <i class="fa-solid fa-grip-dots-vertical text-slate-500 text-xs"></i>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="event.stopPropagation(); speakHebrew('${verb.cleanVerb}')" class="text-sky-400 hover:text-sky-300 bg-slate-700/80 hover:bg-slate-600 rounded-full w-6 h-6 flex items-center justify-center text-xs transition" title="הקרא פועל">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <i class="fa-solid fa-grip-dots-vertical text-slate-500 text-xs"></i>
+                </div>
             `;
 
             // Drag events

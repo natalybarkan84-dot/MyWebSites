@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>משחק זיכרון מילים - סיכום שיעור</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Google Fonts: Heebo & Assistant -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,7 +54,24 @@
                 </div>
             </div>
             
-            <div class="flex items-center gap-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- הקראת הוראות -->
+                <button onclick="speakHebrew('מִשְׂחַק זִיכָּרוֹן מִילִּים. מִצְאוּ אֶת זוּגוֹת הַמִּילִּים הַתּוֹאֲמִים מִתּוֹךְ הַשִּׁיעוּר!')" class="text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-3.5 rounded-xl transition flex items-center gap-1.5 shadow-sm" title="הקרא הוראות">
+                    <i class="fa-solid fa-volume-high"></i>
+                    <span>הקרא הוראות</span>
+                </button>
+
+                <!-- בקרת מהירות ועצירה -->
+                <div class="flex items-center gap-1 bg-indigo-50 px-2.5 py-1.5 rounded-xl border border-indigo-200">
+                    <span class="text-xs font-bold text-indigo-800 ml-1">מהירות:</span>
+                    <button onclick="setAudioSpeed(0.8)" id="speed-08" class="speed-btn px-2 py-0.5 rounded text-xs font-medium text-indigo-700 hover:bg-indigo-200 transition">0.8x</button>
+                    <button onclick="setAudioSpeed(1.0)" id="speed-1" class="speed-btn px-2 py-0.5 rounded text-xs bg-indigo-600 text-white font-bold transition">1x</button>
+                    <button onclick="setAudioSpeed(1.25)" id="speed-125" class="speed-btn px-2 py-0.5 rounded text-xs font-medium text-indigo-700 hover:bg-indigo-200 transition">1.25x</button>
+                    <button onclick="stopAudioPlayback()" class="bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-0.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1 transition mr-1" title="עצור הקראה">
+                        <i class="fa-solid fa-stop"></i> עצור
+                    </button>
+                </div>
+
                 <!-- Sound Toggle -->
                 <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition" title="השתק/הפעל צלילים">
                     <svg id="soundOnIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -164,7 +183,7 @@
 
     <!-- JS Logic -->
     <script>
-        // Game Dataset - 10 words
+        // Game Dataset - 10 words + vocalized forms for accurate female TTS
         const wordsList = [
             "חסד",
             "נאמן, מסור",
@@ -177,6 +196,98 @@
             "עושר",
             "לשוב"
         ];
+
+        const wordsVocalized = {
+            "חסד": "חֶסֶד",
+            "נאמן, מסור": "נֶאֱמָן, מָסוּר",
+            "גאולה": "גְּאוּלָה",
+            "גלמוד": "גַּלְמוּד",
+            "ארץ נכר": "אֶרֶץ נֵכָר",
+            "ביכורים": "בִּיכּוּרִים",
+            "כיליון": "כִּילָּיוֹן",
+            "אושר": "אֹשֶׁר",
+            "עושר": "עֹשֶׁר",
+            "לשוב": "לָשׁוּב"
+        };
+
+        let activeAudio = null;
+        let audioPlayQueue = [];
+        let currentPlaybackSpeed = 1.0;
+
+        function speakHebrew(text) {
+            stopAudioPlayback();
+            if (!text || !text.trim()) return;
+            const spoken = wordsVocalized[text.trim()] || text.trim();
+            audioPlayQueue = [spoken];
+            playNextInQueue();
+        }
+
+        function playNextInQueue() {
+            if (audioPlayQueue.length === 0) {
+                activeAudio = null;
+                return;
+            }
+            const chunk = audioPlayQueue.shift();
+            const encodedText = encodeURIComponent(chunk);
+            const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
+
+            try {
+                activeAudio = new Audio();
+                activeAudio.referrerPolicy = "no-referrer";
+                activeAudio.src = googleTtsUrl;
+                activeAudio.playbackRate = currentPlaybackSpeed;
+
+                let fallbackUsed = false;
+                const triggerFallback = () => {
+                    if (fallbackUsed) return;
+                    fallbackUsed = true;
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        const u = new SpeechSynthesisUtterance(chunk);
+                        u.lang = 'he-IL';
+                        u.rate = currentPlaybackSpeed;
+                        u.pitch = 1.2;
+                        u.onend = () => playNextInQueue();
+                        window.speechSynthesis.speak(u);
+                    }
+                };
+
+                activeAudio.onended = () => playNextInQueue();
+                activeAudio.onerror = triggerFallback;
+                const playPromise = activeAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(triggerFallback);
+                }
+            } catch (e) {}
+        }
+
+        function stopAudioPlayback() {
+            audioPlayQueue = [];
+            if (activeAudio) {
+                activeAudio.onended = null;
+                activeAudio.onerror = null;
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+            }
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function setAudioSpeed(speed) {
+            currentPlaybackSpeed = speed;
+            if (activeAudio) {
+                activeAudio.playbackRate = speed;
+            }
+            document.querySelectorAll('.speed-btn').forEach(el => {
+                el.className = "speed-btn px-2 py-0.5 rounded text-xs font-medium text-indigo-700 hover:bg-indigo-200 transition";
+            });
+            const speedBtn = document.getElementById(`speed-${speed.toString().replace('.', '')}`);
+            if (speedBtn) {
+                speedBtn.className = "speed-btn px-2 py-0.5 rounded text-xs bg-indigo-600 text-white font-bold transition";
+            }
+        }
 
         // State variables
         let soundEnabled = true;
@@ -353,6 +464,17 @@
                 wordSpan.innerText = card.word;
                 backFace.appendChild(wordSpan);
 
+                const spkBtn = document.createElement('button');
+                spkBtn.type = 'button';
+                spkBtn.className = 'mt-1.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-full w-7 h-7 flex items-center justify-center text-xs transition';
+                spkBtn.title = 'הקרא מילה';
+                spkBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+                spkBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    speakHebrew(card.word);
+                });
+                backFace.appendChild(spkBtn);
+
                 cardInner.appendChild(frontFace);
                 cardInner.appendChild(backFace);
                 cardOuter.appendChild(cardInner);
@@ -381,6 +503,9 @@
             // Flip current card
             cardElement.classList.add('flipped');
             flippedCards.push(cardElement);
+            if (cards[index]) {
+                speakHebrew(cards[index].word);
+            }
 
             if (flippedCards.length === 2) {
                 movesCount++;

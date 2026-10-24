@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>מסע חווייתי להבנת מילות קישור בטקסט</title>
 
     <!-- Tailwind CSS -->
@@ -1232,26 +1233,86 @@ function handleRequest(e) {
         }
 
         // =========================================================================
-        // מנוע השמעה וניקוד (TTS & Nikkud Controls)
+        // מנוע השמעה וניקוד (TTS & Nikkud Controls) - קול נשי אנושי
         // =========================================================================
+        let audioPlayQueue = [];
+
+        function splitTextForTTS(text) {
+            const clean = text.replace(/\s+/g, ' ').trim();
+            if (clean.length <= 130) return [clean];
+            const rawSentences = clean.split(/(?<=[.!?։;])\s+/);
+            const chunks = [];
+            for (const s of rawSentences) {
+                if (!s.trim()) continue;
+                if (s.length <= 130) {
+                    chunks.push(s.trim());
+                } else {
+                    const subParts = s.split(/(?<=[,،–-])\s+/);
+                    let current = "";
+                    for (const part of subParts) {
+                        if ((current + " " + part).trim().length <= 130) {
+                            current = (current + " " + part).trim();
+                        } else {
+                            if (current) chunks.push(current);
+                            current = part.trim();
+                        }
+                    }
+                    if (current) chunks.push(current);
+                }
+            }
+            return chunks.length > 0 ? chunks : [clean];
+        }
+
         function speakHebrew(pointedText, plainText) {
             stopAudioPlayback();
 
             const textToSpeak = (isNikkudEnabled || pointedText) ? pointedText : plainText;
             if (!textToSpeak || textToSpeak.trim() === "") return;
 
-            const encodedText = encodeURIComponent(textToSpeak.trim());
+            audioPlayQueue = splitTextForTTS(textToSpeak);
+            playNextInQueue();
+        }
+
+        function playNextInQueue() {
+            if (audioPlayQueue.length === 0) {
+                activeAudio = null;
+                return;
+            }
+            const chunk = audioPlayQueue.shift();
+            const encodedText = encodeURIComponent(chunk);
             const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
 
             try {
-                activeAudio = new Audio(googleTtsUrl);
+                activeAudio = new Audio();
+                activeAudio.referrerPolicy = "no-referrer";
+                activeAudio.src = googleTtsUrl;
                 activeAudio.playbackRate = currentPlaybackSpeed;
-                
+
+                let fallbackUsed = false;
+                const triggerFallback = () => {
+                    if (fallbackUsed) return;
+                    fallbackUsed = true;
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        const u = new SpeechSynthesisUtterance(chunk);
+                        u.lang = 'he-IL';
+                        u.rate = currentPlaybackSpeed;
+                        u.pitch = 1.2;
+                        u.onend = () => playNextInQueue();
+                        window.speechSynthesis.speak(u);
+                    } else {
+                        showToast("שגיאה בהשמעת השמע. אנא בדוק את החיבור לאינטרנט.", "error");
+                    }
+                };
+
+                activeAudio.onended = () => {
+                    playNextInQueue();
+                };
+                activeAudio.onerror = triggerFallback;
+
                 const playPromise = activeAudio.play();
                 if (playPromise !== undefined) {
-                    playPromise.catch(() => {
-                        showToast("שגיאה בהשמעת השמע. אנא בדוק את החיבור לאינטרנט.", "error");
-                    });
+                    playPromise.catch(triggerFallback);
                 }
             } catch (err) {
                 showToast("שגיאה בהפעלת מנוע השמע.", "error");
@@ -1259,10 +1320,16 @@ function handleRequest(e) {
         }
 
         function stopAudioPlayback() {
+            audioPlayQueue = [];
             if (activeAudio) {
+                activeAudio.onended = null;
+                activeAudio.onerror = null;
                 activeAudio.pause();
                 activeAudio.currentTime = 0;
                 activeAudio = null;
+            }
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
             }
         }
 

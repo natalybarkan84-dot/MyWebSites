@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>שיתוף חוויות סוף שבוע בכיתה 🌟</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -132,7 +133,19 @@
             </div>
 
             <!-- Utility Controls -->
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- סרגל מהירות הקראה ועצירה -->
+                <div class="flex items-center gap-1 bg-indigo-50 px-2.5 py-1.5 rounded-xl border border-indigo-200">
+                    <i class="fa-solid fa-headphones-simple text-indigo-600 text-xs"></i>
+                    <span class="text-xs font-bold text-indigo-900 ml-1">מהירות:</span>
+                    <button onclick="setAudioSpeed(0.8)" id="speed-08" class="speed-btn px-2 py-0.5 rounded text-xs font-medium text-indigo-700 hover:bg-indigo-200 transition">0.8x</button>
+                    <button onclick="setAudioSpeed(1.0)" id="speed-1" class="speed-btn px-2 py-0.5 rounded text-xs bg-indigo-600 text-white font-bold transition">1x</button>
+                    <button onclick="setAudioSpeed(1.25)" id="speed-125" class="speed-btn px-2 py-0.5 rounded text-xs font-medium text-indigo-700 hover:bg-indigo-200 transition">1.25x</button>
+                    <button onclick="stopAudioPlayback()" class="bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-0.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1 transition mr-1" title="עצור הקראה">
+                        <i class="fa-solid fa-stop"></i> עצור
+                    </button>
+                </div>
+
                 <button id="soundToggleBtn" onclick="toggleSound()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors" title="הפעל/השתק צלילים">
                     <i id="soundIcon" class="fa-solid fa-volume-high"></i>
                 </button>
@@ -151,11 +164,14 @@
         <section id="cardsViewSection" class="transition-all duration-300">
             <!-- Instruction banner -->
             <div class="mb-6 p-4 rounded-2xl bg-white/70 border border-slate-200/80 shadow-sm flex items-center justify-between flex-wrap gap-3">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 flex-wrap">
                     <span class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-sm">💡</span>
                     <p class="text-sm text-slate-700 font-medium">
                         לחצו על כרטיסייה כדי להפוך אותה ולראות רמזים והנחיות לשיתוף בכיתה.
                     </p>
+                    <button onclick="speakHebrew('חֲוָויוֹת סוֹף הַשָּׁבוּעַ. לִחְצוּ עַל כַּרְטִיסִיָּה כְּדֵי לַהֲפוֹךְ אוֹתָהּ וְלִרְאוֹת רְמָזִים וְהַנְחָיוֹת לְשִׁיתּוּף בַּכִּיתָּה.')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition" title="הקרא הוראות">
+                        <i class="fa-solid fa-volume-high"></i> הקרא הוראות
+                    </button>
                 </div>
                 <div class="text-xs font-semibold text-slate-500">
                     נשאלו: <span id="answeredCount" class="text-indigo-600 font-bold">0</span> / <span id="totalCount">11</span>
@@ -291,9 +307,17 @@
 
                 <!-- Question Number & Student Name -->
                 <div>
-                    <span id="modalCategoryBadge" class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-extrabold uppercase tracking-wide">
-                        שאלה #1
-                    </span>
+                    <div class="flex items-center justify-center gap-2">
+                        <span id="modalCategoryBadge" class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-extrabold uppercase tracking-wide">
+                            שאלה #1
+                        </span>
+                        <button type="button" onclick="readActiveModalQuestion()" class="px-3 py-1 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow flex items-center gap-1.5 transition" title="הקרא שאלה ורמז">
+                            <i class="fa-solid fa-volume-high"></i> הקרא שאלה ורמז
+                        </button>
+                        <button type="button" onclick="stopAudioPlayback()" class="px-2.5 py-1 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow flex items-center gap-1 transition" title="עצור הקראה">
+                            <i class="fa-solid fa-stop"></i>
+                        </button>
+                    </div>
                     <h3 id="modalStudentTitle" class="text-lg font-black text-indigo-600 mt-2 hidden">
                         <!-- Student name injected here -->
                     </h3>
@@ -446,6 +470,128 @@
 
         let soundEnabled = true;
         let audioCtx = null;
+        let activeAudio = null;
+        let audioPlayQueue = [];
+        let currentPlaybackSpeed = 1.0;
+
+        function splitTextForTTS(text) {
+            const clean = text
+                .replace(/YouTube\s*\/\s*TikTok/gi, 'יוטיוב או טיקטוק')
+                .replace(/סופ"ש/g, 'סוֹף הַשָּׁבוּעַ')
+                .replace(/\s+/g, ' ').trim();
+            if (clean.length <= 130) return [clean];
+            const rawSentences = clean.split(/(?<=[.!?։;])\s+/);
+            const chunks = [];
+            for (const s of rawSentences) {
+                if (!s.trim()) continue;
+                if (s.length <= 130) {
+                    chunks.push(s.trim());
+                } else {
+                    const subParts = s.split(/(?<=[,،–-])\s+/);
+                    let current = "";
+                    for (const part of subParts) {
+                        if ((current + " " + part).trim().length <= 130) {
+                            current = (current + " " + part).trim();
+                        } else {
+                            if (current) chunks.push(current);
+                            current = part.trim();
+                        }
+                    }
+                    if (current) chunks.push(current);
+                }
+            }
+            return chunks.length > 0 ? chunks : [clean];
+        }
+
+        function speakHebrew(text) {
+            stopAudioPlayback();
+            if (!text || !text.trim()) return;
+            audioPlayQueue = splitTextForTTS(text);
+            playNextInQueue();
+        }
+
+        function playNextInQueue() {
+            if (audioPlayQueue.length === 0) {
+                activeAudio = null;
+                return;
+            }
+            const chunk = audioPlayQueue.shift();
+            const encodedText = encodeURIComponent(chunk);
+            const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
+
+            try {
+                activeAudio = new Audio();
+                activeAudio.referrerPolicy = "no-referrer";
+                activeAudio.src = googleTtsUrl;
+                activeAudio.playbackRate = currentPlaybackSpeed;
+
+                let fallbackUsed = false;
+                const triggerFallback = () => {
+                    if (fallbackUsed) return;
+                    fallbackUsed = true;
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        const u = new SpeechSynthesisUtterance(chunk);
+                        u.lang = 'he-IL';
+                        u.rate = currentPlaybackSpeed;
+                        u.pitch = 1.2;
+                        u.onend = () => playNextInQueue();
+                        window.speechSynthesis.speak(u);
+                    }
+                };
+
+                activeAudio.onended = () => playNextInQueue();
+                activeAudio.onerror = triggerFallback;
+                const playPromise = activeAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(triggerFallback);
+                }
+            } catch (e) {}
+        }
+
+        function stopAudioPlayback() {
+            audioPlayQueue = [];
+            if (activeAudio) {
+                activeAudio.onended = null;
+                activeAudio.onerror = null;
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+            }
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function setAudioSpeed(speed) {
+            currentPlaybackSpeed = speed;
+            if (activeAudio) {
+                activeAudio.playbackRate = speed;
+            }
+            document.querySelectorAll('.speed-btn').forEach(el => {
+                el.className = "speed-btn px-2 py-0.5 rounded text-xs font-medium text-indigo-700 hover:bg-indigo-200 transition";
+            });
+            const speedBtn = document.getElementById(`speed-${speed.toString().replace('.', '')}`);
+            if (speedBtn) {
+                speedBtn.className = "speed-btn px-2 py-0.5 rounded text-xs bg-indigo-600 text-white font-bold transition";
+            }
+        }
+
+        function speakCardById(id, side) {
+            const q = questionsData.find(item => item.id === id);
+            if (!q) return;
+            if (side === 'hint') {
+                speakHebrew(`רמז לשיתוף: ${q.hintText}`);
+            } else {
+                speakHebrew(`${q.title}. ${q.frontText}`);
+            }
+        }
+
+        function readActiveModalQuestion() {
+            const q = questionsData.find(item => item.id === activeModalQuestionId);
+            if (!q) return;
+            speakHebrew(`${q.title}. ${q.frontText}. רמז לשיתוף: ${q.hintText}`);
+        }
 
         function getAudioContext() {
             if (!audioCtx) {
@@ -661,9 +807,14 @@
                                     <span class="w-10 h-10 rounded-xl bg-gradient-to-tr ${q.gradient} text-white flex items-center justify-center text-lg shadow-sm">
                                         <i class="fa-solid ${q.icon}"></i>
                                     </span>
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold ${q.answered ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
-                                        ${q.answered ? '<i class="fa-solid fa-check ml-1"></i>נענתה' : `שאלה #${q.id}`}
-                                    </span>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" onclick="event.stopPropagation(); speakCardById(${q.id}, 'front')" class="px-2.5 py-1 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center gap-1 transition" title="הקרא שאלה">
+                                            <i class="fa-solid fa-volume-high"></i> הקרא
+                                        </button>
+                                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${q.answered ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+                                            ${q.answered ? '<i class="fa-solid fa-check ml-1"></i>נענתה' : `שאלה #${q.id}`}
+                                        </span>
+                                    </div>
                                 </div>
                                 <h3 class="font-bold text-slate-800 text-base text-right mb-2">${q.title}</h3>
                                 <p class="text-sm font-medium text-slate-600 text-right leading-snug">${q.frontText}</p>
@@ -683,7 +834,12 @@
                                     <span class="text-xs font-bold text-amber-300 flex items-center gap-1">
                                         <i class="fa-solid fa-lightbulb"></i> רמז והכוונת שיתוף
                                     </span>
-                                    <span class="text-xs text-indigo-300 font-bold">#${q.id} ${q.title}</span>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" onclick="event.stopPropagation(); speakCardById(${q.id}, 'hint')" class="px-2 py-0.5 rounded-full bg-indigo-700 hover:bg-indigo-600 text-amber-300 text-xs font-bold flex items-center gap-1 transition" title="הקרא רמז">
+                                            <i class="fa-solid fa-volume-high"></i> הקרא רמז
+                                        </button>
+                                        <span class="text-xs text-indigo-300 font-bold">#${q.id}</span>
+                                    </div>
                                 </div>
                                 <p class="text-sm text-indigo-100 leading-relaxed font-normal mt-2">${q.hintText}</p>
                             </div>
@@ -928,6 +1084,7 @@
         }
 
         function closeModal() {
+            stopAudioPlayback();
             const modal = document.getElementById('resultModal');
             const modalContent = document.getElementById('modalContent');
             modal.classList.add('opacity-0');

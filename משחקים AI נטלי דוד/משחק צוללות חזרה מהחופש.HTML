@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
   <title>משחק צוללות - כיתה ח' שקד</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -102,7 +104,23 @@
 <body>
 
   <h1>🚢 משחק צוללות - כיתה ח' שקד 🚢</h1>
-  <p class="subtitle">לחצו על משבצת, ענו על השאלה וסמנו אם מצאתם צוללת או מים!</p>
+  <p class="subtitle" style="margin-bottom: 10px;">לחצו על משבצת, ענו על השאלה וסמנו אם מצאתם צוללת או מים!</p>
+
+  <!-- סרגל הקראה קולית (קול נשי אנושי + האטה/האצה + עצירה) -->
+  <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px; background:rgba(255,255,255,0.14); padding:10px 18px; border-radius:14px; margin-bottom:16px; border:1px solid rgba(255,255,255,0.25);">
+    <button onclick="speakHebrew('מִשְׂחַק צוֹלְלוֹת, כִּיתָּה חֵית שָׁקֵד. לִחְצוּ עַל מִשְׁבֶּצֶת, עֲנוּ עַל הַשְּׁאֵלָה וְסַמְּנוּ אִם מְצָאתֶם צוֹלֶלֶת אוֹ מַיִם!')" style="background:#00b4db; color:#fff; padding:7px 14px; font-size:0.95rem; border-radius:20px; display:flex; align-items:center; gap:6px;">
+      <i class="fa-solid fa-volume-high"></i> הקרא הוראות
+    </button>
+    <div style="display:flex; align-items:center; gap:5px; background:rgba(0,0,0,0.28); padding:4px 10px; border-radius:10px;">
+      <span style="font-size:0.85rem; opacity:0.9;">מהירות:</span>
+      <button onclick="setAudioSpeed(0.8)" id="speed-08" class="speed-btn" style="padding:4px 8px; font-size:0.8rem; background:transparent; color:#fff;">0.8x</button>
+      <button onclick="setAudioSpeed(1.0)" id="speed-1" class="speed-btn" style="padding:4px 8px; font-size:0.8rem; background:#00b4db; color:#fff;">1x</button>
+      <button onclick="setAudioSpeed(1.25)" id="speed-125" class="speed-btn" style="padding:4px 8px; font-size:0.8rem; background:transparent; color:#fff;">1.25x</button>
+    </div>
+    <button onclick="stopAudioPlayback()" style="background:#e53935; color:#fff; padding:6px 14px; font-size:0.9rem; border-radius:10px; display:flex; align-items:center; gap:6px;" title="עצור הקראה">
+      <i class="fa-solid fa-stop"></i> עצור
+    </button>
+  </div>
 
   <div class="board-container" id="board"></div>
 
@@ -110,7 +128,15 @@
 
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
-      <h2 id="modalTitle">שאלה</h2>
+      <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
+        <h2 id="modalTitle" style="margin:0;">שאלה</h2>
+        <button type="button" onclick="speakHebrew(questionText.innerText)" style="background:#0083b0; color:#fff; padding:7px 14px; font-size:0.95rem; border-radius:20px; display:flex; align-items:center; gap:6px;" title="הקרא שאלה">
+          <i class="fa-solid fa-volume-high"></i> הקרא שאלה
+        </button>
+        <button type="button" onclick="stopAudioPlayback()" style="background:#e53935; color:#fff; padding:7px 12px; font-size:0.95rem; border-radius:20px; display:flex; align-items:center; gap:4px;" title="עצור הקראה">
+          <i class="fa-solid fa-stop"></i>
+        </button>
+      </div>
       <p id="questionText"></p>
       <div class="btn-group">
         <button class="btn-hit" onclick="markCell('hit')">💥 צוללת (פגיעה)</button>
@@ -161,6 +187,90 @@
     const board = document.getElementById('board');
     const modalOverlay = document.getElementById('modalOverlay');
     const questionText = document.getElementById('questionText');
+    let activeAudio = null;
+    let audioPlayQueue = [];
+    let currentPlaybackSpeed = 1.0;
+
+    function splitTextForTTS(text) {
+      const clean = text.replace(/\s+/g, ' ').trim();
+      if (clean.length <= 130) return [clean];
+      const rawSentences = clean.split(/(?<=[.!?։;])\s+/);
+      return rawSentences.filter(s => s && s.trim());
+    }
+
+    function speakHebrew(text) {
+      stopAudioPlayback();
+      if (!text || !text.trim()) return;
+      audioPlayQueue = splitTextForTTS(text);
+      playNextInQueue();
+    }
+
+    function playNextInQueue() {
+      if (audioPlayQueue.length === 0) {
+        activeAudio = null;
+        return;
+      }
+      const chunk = audioPlayQueue.shift();
+      const encodedText = encodeURIComponent(chunk);
+      const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
+
+      try {
+        activeAudio = new Audio();
+        activeAudio.referrerPolicy = "no-referrer";
+        activeAudio.src = googleTtsUrl;
+        activeAudio.playbackRate = currentPlaybackSpeed;
+
+        let fallbackUsed = false;
+        const triggerFallback = () => {
+          if (fallbackUsed) return;
+          fallbackUsed = true;
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(chunk);
+            u.lang = 'he-IL';
+            u.rate = currentPlaybackSpeed;
+            u.pitch = 1.2;
+            u.onend = () => playNextInQueue();
+            window.speechSynthesis.speak(u);
+          }
+        };
+
+        activeAudio.onended = () => playNextInQueue();
+        activeAudio.onerror = triggerFallback;
+        const playPromise = activeAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(triggerFallback);
+        }
+      } catch (e) {}
+    }
+
+    function stopAudioPlayback() {
+      audioPlayQueue = [];
+      if (activeAudio) {
+        activeAudio.onended = null;
+        activeAudio.onerror = null;
+        activeAudio.pause();
+        activeAudio.currentTime = 0;
+        activeAudio = null;
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function setAudioSpeed(speed) {
+      currentPlaybackSpeed = speed;
+      if (activeAudio) {
+        activeAudio.playbackRate = speed;
+      }
+      document.querySelectorAll('.speed-btn').forEach(el => {
+        el.style.background = 'transparent';
+      });
+      const speedBtn = document.getElementById(`speed-${speed.toString().replace('.', '')}`);
+      if (speedBtn) {
+        speedBtn.style.background = '#00b4db';
+      }
+    }
 
     function createBoard() {
       board.innerHTML = '';
@@ -187,6 +297,7 @@
     }
 
     function markCell(type) {
+      stopAudioPlayback();
       if (currentCell) {
         if (type === 'hit') {
           currentCell.classList.remove('miss');

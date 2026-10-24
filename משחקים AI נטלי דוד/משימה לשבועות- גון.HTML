@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>מגילת רות: מסע של חסד ותקווה - משימה אינטראקטיבית לגון</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -430,56 +431,57 @@
         let currentSpeakingBtn = null;
 
         // =========================================================================
-        // מנוע הקראה אנושית נשית מובנה (Web Speech API TTS Engine)
-        // פועל ישירות בתוך הדפדפן ללא תלות ברשת חיצונית, חסימות ORB או CORS
-        // תומך בקולות נשיים טבעיים (Hila / Carmit / Google), בקרת מהירות ועצירה מיידית
+        // מנוע הקראה אנושית נשית (Google Translate TTS + Fallback)
+        // כולל תמיכה ב-no-referrer, חלוקה למשפטים, שינוי מהירות ועצירה מיידית
         // =========================================================================
+        let activeAudio = null;
+        let audioPlayQueue = [];
+
+        function splitTextForTTS(text) {
+            const clean = text.replace(/\s+/g, ' ').trim();
+            if (clean.length <= 130) return [clean];
+            const rawSentences = clean.split(/(?<=[.!?։;])\s+/);
+            const chunks = [];
+            for (const s of rawSentences) {
+                if (!s.trim()) continue;
+                if (s.length <= 130) {
+                    chunks.push(s.trim());
+                } else {
+                    const subParts = s.split(/(?<=[,،–-])\s+/);
+                    let current = "";
+                    for (const part of subParts) {
+                        if ((current + " " + part).trim().length <= 130) {
+                            current = (current + " " + part).trim();
+                        } else {
+                            if (current) chunks.push(current);
+                            current = part.trim();
+                        }
+                    }
+                    if (current) chunks.push(current);
+                }
+            }
+            return chunks.length > 0 ? chunks : [clean];
+        }
+
         const TTS = {
-            available: 'speechSynthesis' in window,
-            currentSpeed: 0.85,
+            available: true,
+            currentSpeed: 1.0,
             isSpeaking: false,
             _token: 0,
-            _keepUtterances: [],
-            _resumeTimer: null,
-
-            getBestVoice() {
-                if (!this.available) return null;
-                const voices = window.speechSynthesis.getVoices() || [];
-                const heVoices = voices.filter(v => /^(he|iw)([-_]|$)/i.test(v.lang) || /hebrew/i.test(v.name));
-                if (heVoices.length === 0) return null;
-
-                const rank = v => {
-                    const n = (v.name || '').toLowerCase();
-                    let s = 0;
-                    if (/hila|הילה/i.test(n)) s += 30;
-                    if (/carmit|כרמית/i.test(n)) s += 25;
-                    if (/google/i.test(n) && !/male/i.test(n)) s += 20;
-                    if (/natural|neural|online/i.test(n)) s += 15;
-                    if (/female|נשי|אישה/i.test(n)) s += 10;
-                    return s;
-                };
-
-                heVoices.sort((a, b) => rank(b) - rank(a));
-                return heVoices[0];
-            },
 
             init() {
-                if (!this.available) return;
                 try {
                     const savedSpeed = localStorage.getItem('shavuot_audio_speed');
-                    if (savedSpeed) this.currentSpeed = parseFloat(savedSpeed) || 0.85;
+                    if (savedSpeed) this.currentSpeed = parseFloat(savedSpeed) || 1.0;
                 } catch(e) {}
-
-                if (window.speechSynthesis.onvoiceschanged !== undefined) {
-                    window.speechSynthesis.onvoiceschanged = () => {
-                        this.getBestVoice();
-                    };
-                }
                 updateSpeedButtonsUI(this.currentSpeed);
             },
 
             setSpeed(speed) {
                 this.currentSpeed = speed;
+                if (activeAudio) {
+                    activeAudio.playbackRate = speed;
+                }
                 try {
                     localStorage.setItem('shavuot_audio_speed', speed);
                 } catch(e) {}
@@ -487,19 +489,25 @@
             },
 
             stop() {
-                if (!this.available) return;
                 this._token++;
-                clearInterval(this._resumeTimer);
-                window.speechSynthesis.cancel();
-                this._keepUtterances = [];
+                audioPlayQueue = [];
+                if (activeAudio) {
+                    activeAudio.onended = null;
+                    activeAudio.onerror = null;
+                    activeAudio.pause();
+                    activeAudio.currentTime = 0;
+                    activeAudio = null;
+                }
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
                 this.isSpeaking = false;
                 setSpeakingUI(false);
             },
 
             speak(text, btnElement = null) {
-                if (!this.available || !text || !text.trim()) return;
+                if (!text || !text.trim()) return;
 
-                // עצירת כל השמעה פעילה קודמת
                 this.stop();
 
                 const token = ++this._token;
@@ -511,56 +519,59 @@
                     btnElement.classList.add('speaking-active');
                 }
 
-                // חלוקת הטקסט למשפטים קצרים כדי למנוע השהיות בכרום ובמכשירים ניידים
-                const clean = text.replace(/\s+/g, ' ').trim();
-                const sentences = clean.split(/(?<=[.!?։;])\s+/).filter(s => s && s.trim());
-                const chunks = sentences.length > 0 ? sentences : [clean];
+                audioPlayQueue = splitTextForTTS(text);
+                this._playNext(token);
+            },
 
-                const bestVoice = this.getBestVoice();
-                // אם הקול הוא נשי טבעי (Hila/Carmit), נשתמש ב-pitch 1.05; אם קול ברירת מחדל, נגביה מעט ל-1.25 לגוון נשי ונעים
-                const isNaturalFemale = bestVoice && /hila|carmit|female|אישה/i.test(bestVoice.name);
-                const pitch = isNaturalFemale ? 1.05 : 1.25;
+            _playNext(token) {
+                if (this._token !== token) return;
+                if (audioPlayQueue.length === 0) {
+                    this.stop();
+                    return;
+                }
 
-                chunks.forEach((chunk, idx) => {
-                    const utterance = new SpeechSynthesisUtterance(chunk);
-                    utterance.lang = 'he-IL';
-                    utterance.rate = this.currentSpeed;
-                    utterance.pitch = pitch;
-                    if (bestVoice) {
-                        utterance.voice = bestVoice;
-                    }
+                const chunk = audioPlayQueue.shift();
+                const encodedText = encodeURIComponent(chunk);
+                const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
 
-                    if (idx === chunks.length - 1) {
-                        utterance.onend = () => {
-                            if (this._token === token) {
-                                this.stop();
-                            }
-                        };
-                    }
+                try {
+                    activeAudio = new Audio();
+                    activeAudio.referrerPolicy = "no-referrer";
+                    activeAudio.src = googleTtsUrl;
+                    activeAudio.playbackRate = this.currentSpeed;
 
-                    utterance.onerror = (e) => {
-                        if (e.error !== 'interrupted' && e.error !== 'canceled') {
-                            console.warn('TTS playback note:', e);
-                        }
-                        if (idx === chunks.length - 1 && this._token === token) {
+                    let fallbackUsed = false;
+                    const triggerFallback = () => {
+                        if (fallbackUsed || this._token !== token) return;
+                        fallbackUsed = true;
+                        if ('speechSynthesis' in window) {
+                            window.speechSynthesis.cancel();
+                            const u = new SpeechSynthesisUtterance(chunk);
+                            u.lang = 'he-IL';
+                            u.rate = this.currentSpeed;
+                            u.pitch = 1.25;
+                            u.onend = () => this._playNext(token);
+                            u.onerror = () => this._playNext(token);
+                            window.speechSynthesis.speak(u);
+                        } else {
                             this.stop();
                         }
                     };
 
-                    this._keepUtterances.push(utterance);
-                    window.speechSynthesis.speak(utterance);
-                });
+                    activeAudio.onended = () => {
+                        if (this._token === token) {
+                            this._playNext(token);
+                        }
+                    };
+                    activeAudio.onerror = triggerFallback;
 
-                // מניעת השהיות בכרום (Keep-alive timer)
-                clearInterval(this._resumeTimer);
-                this._resumeTimer = setInterval(() => {
-                    if (!window.speechSynthesis.speaking) {
-                        clearInterval(this._resumeTimer);
-                        return;
+                    const playPromise = activeAudio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(triggerFallback);
                     }
-                    window.speechSynthesis.pause();
-                    window.speechSynthesis.resume();
-                }, 8000);
+                } catch (e) {
+                    this.stop();
+                }
             }
         };
 

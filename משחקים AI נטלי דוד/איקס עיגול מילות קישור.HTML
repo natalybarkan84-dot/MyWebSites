@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>משחק איקס עיגול - מילות קישור</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         /* הגדרות גופן ועיצוב כללי נקי ורגוע */
         @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap');
@@ -36,7 +38,31 @@
 
     <header class="text-center mb-6 w-full max-w-2xl">
         <h1 class="text-4xl font-bold text-green-800 mb-2">איקס עיגול - מילות קישור</h1>
-        <p class="text-lg text-gray-700 mb-4">ענו נכונה על השאלה כדי לתפוס משבצת!</p>
+        <div class="flex flex-wrap items-center justify-center gap-2 mb-4">
+            <p class="text-lg text-gray-700">ענו נכונה על השאלה כדי לתפוס משבצת!</p>
+            <button onclick="speakHebrew('אִיקְס עִיגּוּל מִילּוֹת קִישּׁוּר. עֲנוּ נְכוֹנָה עַל הַשְּׁאֵלָה כְּדֵי לִתְפּוֹס מִשְׁבֶּצֶת!')" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition" title="הקראת הוראות">
+                <i class="fa-solid fa-volume-high"></i> הקרא הוראות
+            </button>
+        </div>
+
+        <!-- סרגל בקרת הקראה קולית (קול נשי אנושי + מהירות + עצירה) -->
+        <div class="bg-green-700 text-white rounded-xl shadow-md px-4 py-2.5 mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2 text-sm font-bold">
+                <i class="fa-solid fa-headphones-simple text-green-200"></i>
+                <span>עזרי שמע והקראה:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center gap-1 bg-black/20 px-2.5 py-1 rounded-lg border border-white/15">
+                    <span class="text-xs text-green-100 ml-1">מהירות:</span>
+                    <button onclick="setAudioSpeed(0.8)" id="speed-08" class="speed-btn px-2 py-0.5 rounded text-xs hover:bg-white/20 transition">0.8x</button>
+                    <button onclick="setAudioSpeed(1.0)" id="speed-1" class="speed-btn px-2 py-0.5 rounded text-xs bg-white/30 font-bold transition">1x</button>
+                    <button onclick="setAudioSpeed(1.25)" id="speed-125" class="speed-btn px-2 py-0.5 rounded text-xs hover:bg-white/20 transition">1.25x</button>
+                </div>
+                <button onclick="stopAudioPlayback()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1 rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition" title="עצור הקראה">
+                    <i class="fa-solid fa-stop"></i> עצור
+                </button>
+            </div>
+        </div>
         
         <div class="bg-white rounded-xl shadow-md p-4 flex justify-between items-center border-2 border-green-200">
             <div id="turn-indicator" class="text-2xl font-bold">
@@ -57,7 +83,15 @@
     <div id="question-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50 transition-opacity">
         <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg transform scale-100 border-4 border-blue-400">
             <div class="text-center mb-6">
-                <span class="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full font-bold mb-3" id="question-category">קטגוריה</span>
+                <div class="flex items-center justify-center gap-2 mb-3">
+                    <span class="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full font-bold" id="question-category">קטגוריה</span>
+                    <button id="read-question-btn" type="button" onclick="readCurrentQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-3 py-1 rounded-full shadow flex items-center gap-1.5 transition" title="הקרא את השאלה והתשובות">
+                        <i class="fa-solid fa-volume-high"></i> הקרא שאלה
+                    </button>
+                    <button type="button" onclick="stopAudioPlayback()" class="bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1 transition" title="עצור הקראה">
+                        <i class="fa-solid fa-stop"></i>
+                    </button>
+                </div>
                 <h2 id="question-text" class="text-2xl font-bold text-gray-800 leading-snug">כאן תופיע השאלה?</h2>
             </div>
             <div id="answers-container" class="grid grid-cols-1 gap-3">
@@ -227,6 +261,112 @@
         }
 
         let currentQuestion = null;
+        let currentShuffledOptions = [];
+        let activeAudio = null;
+        let audioPlayQueue = [];
+        let currentPlaybackSpeed = 1.0;
+
+        function splitTextForTTS(text) {
+            const clean = text.replace(/_{2,}/g, ' הַשְׁלֵם ').replace(/\s+/g, ' ').trim();
+            if (clean.length <= 130) return [clean];
+            const rawSentences = clean.split(/(?<=[.!?։;])\s+/);
+            const chunks = [];
+            for (const s of rawSentences) {
+                if (!s.trim()) continue;
+                if (s.length <= 130) {
+                    chunks.push(s.trim());
+                } else {
+                    const subParts = s.split(/(?<=[,،–-])\s+/);
+                    let current = "";
+                    for (const part of subParts) {
+                        if ((current + " " + part).trim().length <= 130) {
+                            current = (current + " " + part).trim();
+                        } else {
+                            if (current) chunks.push(current);
+                            current = part.trim();
+                        }
+                    }
+                    if (current) chunks.push(current);
+                }
+            }
+            return chunks.length > 0 ? chunks : [clean];
+        }
+
+        function speakHebrew(text) {
+            stopAudioPlayback();
+            if (!text || !text.trim()) return;
+            audioPlayQueue = splitTextForTTS(text);
+            playNextInQueue();
+        }
+
+        function playNextInQueue() {
+            if (audioPlayQueue.length === 0) {
+                activeAudio = null;
+                return;
+            }
+            const chunk = audioPlayQueue.shift();
+            const encodedText = encodeURIComponent(chunk);
+            const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
+
+            try {
+                activeAudio = new Audio();
+                activeAudio.referrerPolicy = "no-referrer";
+                activeAudio.src = googleTtsUrl;
+                activeAudio.playbackRate = currentPlaybackSpeed;
+
+                let fallbackUsed = false;
+                const triggerFallback = () => {
+                    if (fallbackUsed) return;
+                    fallbackUsed = true;
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        const u = new SpeechSynthesisUtterance(chunk);
+                        u.lang = 'he-IL';
+                        u.rate = currentPlaybackSpeed;
+                        u.pitch = 1.2;
+                        u.onend = () => playNextInQueue();
+                        window.speechSynthesis.speak(u);
+                    }
+                };
+
+                activeAudio.onended = () => playNextInQueue();
+                activeAudio.onerror = triggerFallback;
+                const playPromise = activeAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(triggerFallback);
+                }
+            } catch (e) {}
+        }
+
+        function stopAudioPlayback() {
+            audioPlayQueue = [];
+            if (activeAudio) {
+                activeAudio.onended = null;
+                activeAudio.onerror = null;
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+            }
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function setAudioSpeed(speed) {
+            currentPlaybackSpeed = speed;
+            if (activeAudio) {
+                activeAudio.playbackRate = speed;
+            }
+            document.querySelectorAll('.speed-btn').forEach(el => el.classList.remove('bg-white/30', 'font-bold'));
+            const speedBtn = document.getElementById(`speed-${speed.toString().replace('.', '')}`);
+            if (speedBtn) speedBtn.classList.add('bg-white/30', 'font-bold');
+        }
+
+        function readCurrentQuestion() {
+            if (!currentQuestion) return;
+            const optsText = currentShuffledOptions.map((o, i) => `אפשרות ${i + 1}: ${o.text}`).join('. ');
+            speakHebrew(`${currentQuestion.category}. ${currentQuestion.text}. ${optsText}`);
+        }
 
         function handleCellClick(index) {
             if (board[index] || !gameActive) return;
@@ -246,13 +386,33 @@
             // יצירת כפתורי התשובות (מערבבים אותן כדי שהתשובה הנכונה לא תהיה תמיד באותו מקום, אבל שומרים על האינדקס המקורי לבדיקה)
             let optionsWithIndex = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
             shuffleArray(optionsWithIndex);
+            currentShuffledOptions = optionsWithIndex;
 
             optionsWithIndex.forEach((opt) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-2';
+
                 const btn = document.createElement('button');
-                btn.classList.add('bg-gray-100', 'hover:bg-blue-100', 'text-gray-800', 'font-medium', 'py-4', 'px-6', 'rounded-xl', 'text-lg', 'text-right', 'transition-colors', 'border', 'border-gray-200');
+                btn.classList.add('flex-grow', 'bg-gray-100', 'hover:bg-blue-100', 'text-gray-800', 'font-medium', 'py-3.5', 'px-5', 'rounded-xl', 'text-lg', 'text-right', 'transition-colors', 'border', 'border-gray-200');
                 btn.innerText = opt.text;
-                btn.onclick = () => checkAnswer(opt.originalIndex === q.correct);
-                answersContainer.appendChild(btn);
+                btn.onclick = () => {
+                    stopAudioPlayback();
+                    checkAnswer(opt.originalIndex === q.correct);
+                };
+
+                const spkBtn = document.createElement('button');
+                spkBtn.type = 'button';
+                spkBtn.className = 'bg-blue-50 hover:bg-blue-200 text-blue-700 p-3.5 rounded-xl border border-blue-200 transition flex-shrink-0';
+                spkBtn.title = 'הקרא אפשרות';
+                spkBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+                spkBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    speakHebrew(opt.text);
+                };
+
+                row.appendChild(btn);
+                row.appendChild(spkBtn);
+                answersContainer.appendChild(row);
             });
 
             document.getElementById('question-modal').classList.remove('hidden');
@@ -260,6 +420,7 @@
         }
 
         function closeModal() {
+            stopAudioPlayback();
             document.getElementById('question-modal').classList.add('hidden');
             document.body.classList.remove('modal-open');
             pendingCellIndex = null;
