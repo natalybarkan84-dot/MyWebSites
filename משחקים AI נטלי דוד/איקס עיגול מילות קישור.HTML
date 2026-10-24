@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק איקס עיגול - מילות קישור</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* הגדרות גופן ועיצוב כללי נקי ורגוע */
+        @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Rubik', sans-serif;
+            background-color: #f0fdf4; /* ירוק בהיר ומרגיע */
+            color: #1f2937;
+        }
+        
+        .cell {
+            transition: background-color 0.2s ease;
+        }
+        
+        .cell:hover:not(:disabled) {
+            background-color: #dcfce7;
+        }
+
+        /* מניעת לחיצה כפולה והסתרת סקרול-בר במודאל */
+        .modal-open {
+            overflow: hidden;
+        }
+        
+        /* עיצוב סימני X ו-O */
+        .text-x { color: #3b82f6; } /* כחול */
+        .text-o { color: #ef4444; } /* אדום */
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-8 px-4">
+
+    <header class="text-center mb-6 w-full max-w-2xl">
+        <h1 class="text-4xl font-bold text-green-800 mb-2">איקס עיגול - מילות קישור</h1>
+        <p class="text-lg text-gray-700 mb-4">ענו נכונה על השאלה כדי לתפוס משבצת!</p>
+        
+        <div class="bg-white rounded-xl shadow-md p-4 flex justify-between items-center border-2 border-green-200">
+            <div id="turn-indicator" class="text-2xl font-bold">
+                תור שחקן: <span id="current-player-display" class="text-x">X</span>
+            </div>
+            <button onclick="resetGame(true)" class="bg-green-100 hover:bg-green-200 text-green-800 font-semibold py-2 px-4 rounded-lg transition-colors border border-green-300">
+                התחל משחק מחדש
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-md">
+        <div id="board" class="grid grid-cols-3 gap-3 bg-green-300 p-3 rounded-2xl shadow-lg">
+            <!-- המשבצות ייווצרו דינמית על ידי JavaScript -->
+        </div>
+    </main>
+
+    <div id="question-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg transform scale-100 border-4 border-blue-400">
+            <div class="text-center mb-6">
+                <span class="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full font-bold mb-3" id="question-category">קטגוריה</span>
+                <h2 id="question-text" class="text-2xl font-bold text-gray-800 leading-snug">כאן תופיע השאלה?</h2>
+            </div>
+            <div id="answers-container" class="grid grid-cols-1 gap-3">
+                <!-- כפתורי התשובות ייווצרו דינמית -->
+            </div>
+            <div class="mt-6 text-center">
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 font-medium">
+                    ביטול (ויתור על התור)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div id="feedback-content" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center border-4">
+            <h2 id="feedback-title" class="text-3xl font-bold mb-4"></h2>
+            <p id="feedback-message" class="text-lg mb-6"></p>
+            <button id="feedback-btn" onclick="closeFeedback()" class="w-full font-bold py-3 px-4 rounded-xl text-white shadow-md transition-transform active:scale-95">
+                המשך
+            </button>
+        </div>
+    </div>
+
+    <footer class="mt-8 mb-2 text-center text-gray-600 text-sm font-medium w-full">
+        נוצר על ידי נטלי דוד
+    </footer>
+
+    <script>
+        // מאגר 50 שאלות ומשימות ברמות חשיבה שונות
+        const masterQuestionPool = [
+            // רמת חשיבה: השלמה (זיהוי ההקשר מתוך משפט) - קשרי סיבה ותוצאה
+            { text: "דני נשאר בבית _____ הוא הרגיש לא טוב.", options: ["מפני ש", "למרות ש", "לכן", "בנוסף"], correct: 0, category: "השלמת משפט" },
+            { text: "השמיים התקדרו והתחילו ברקים, _____ החלטנו לבטל את הטיול.", options: ["בגלל", "לכן", "כדי ש", "למרות זאת"], correct: 1, category: "השלמת משפט" },
+            { text: "המורה שיבחה את הכיתה _____ ההתנהגות הטובה בטקס.", options: ["כדי", "בגלל ש", "הודות ל", "אף על פי ש"], correct: 2, category: "השלמת משפט" },
+            { text: "ירד שלג כבד, ו_____ נחסמו כל הכבישים לאזור.", options: ["כתוצאה מכך", "משום ש", "כדי ש", "בזמן ש"], correct: 0, category: "השלמת משפט" },
+            { text: "_____ תקלה במנוע, המטוס חזר לנחיתה.", options: ["לכן", "עקב", "אולם", "כמו כן"], correct: 1, category: "השלמת משפט" },
+            
+            // רמת חשיבה: השלמה - ניגוד וויתור
+            { text: "רציתי לקנות גלידה, _____ הארנק שלי נשאר בבית.", options: ["או", "אבל", "לכן", "מפני ש"], correct: 1, category: "השלמת משפט" },
+            { text: "_____ העייפות הרבה, סיימתי את כל שיעורי הבית.", options: ["בגלל", "למרות", "לכן", "כאשר"], correct: 1, category: "השלמת משפט" },
+            { text: "הקבוצה התאמנה שעות רבות. _____, היא הפסידה במשחק.", options: ["לכן", "מפני ש", "למרות זאת", "בנוסף לכך"], correct: 2, category: "השלמת משפט" },
+            { text: "אני אוהב לאכול פיצה, _____ אחי מעדיף המבורגר.", options: ["ואילו", "בגלל ש", "לכן", "כדי"], correct: 0, category: "השלמת משפט" },
+            { text: "המבחן היה קשה מאוד, _____ רוב התלמידים הצליחו בו.", options: ["אך", "לכן", "משום ש", "כאשר"], correct: 0, category: "השלמת משפט" },
+            
+            // רמת חשיבה: השלמה - הוספה
+            { text: "במסיבה היו בלונים, חטיפים, ו_____ עוגת יום הולדת גדולה.", options: ["גם", "אבל", "לכן", "בגלל"], correct: 0, category: "השלמת משפט" },
+            { text: "הספר היה מרתק. _____, הוא היה כתוב בשפה ברורה.", options: ["למרות זאת", "בנוסף לכך", "מפני ש", "לכן"], correct: 1, category: "השלמת משפט" },
+            { text: "למדתי למבחן בהיסטוריה. _____, חזרתי על החומר במתמטיקה.", options: ["אבל", "יתר על כן", "לכן", "בגלל ש"], correct: 1, category: "השלמת משפט" },
+            { text: "בפיקניק אכלנו פירות _____ שתינו מיץ מתוק.", options: ["ו-", "אבל", "לכן", "בגלל"], correct: 0, category: "השלמת משפט" },
+            
+            // רמת חשיבה: השלמה - זמן, תנאי, תכלית
+            { text: "נצא לשחק בחוץ _____ תסיים לסדר את החדר.", options: ["אחרי ש", "למרות ש", "בגלל ש", "או"], correct: 0, category: "השלמת משפט" },
+            { text: "אני תמיד מצחצח שיניים _____ אני הולך לישון.", options: ["לפני ש", "כדי ש", "בגלל ש", "אף על פי ש"], correct: 0, category: "השלמת משפט" },
+            { text: "אקנה לך את המשחק _____ תבטיח לשחק בו יחד איתי.", options: ["למרות ש", "בתנאי ש", "לכן", "משום ש"], correct: 1, category: "השלמת משפט" },
+            { text: "התעוררתי מוקדם _____ לא לאחר להסעה.", options: ["מפני ש", "כדי", "לכן", "אולם"], correct: 1, category: "השלמת משפט" },
+            { text: "_____ לא ירד גשם מחר, ניסע לים.", options: ["אם", "לכן", "בגלל ש", "למרות"], correct: 0, category: "השלמת משפט" },
+            { text: "_____ חיכיתי לאוטובוס, קראתי ספר מעניין.", options: ["בזמן ש", "כדי ש", "לכן", "אבל"], correct: 0, category: "השלמת משפט" },
+
+            // רמת חשיבה: זיהוי קשר לוגי (מטא-שפה)
+            { text: "איזה קשר לוגי מבטאת המילה 'אבל'?", options: ["ניגוד", "סיבה", "תוצאה", "הוספה"], correct: 0, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטאת המילה 'לכן'?", options: ["ניגוד", "סיבה", "תוצאה", "זמן"], correct: 2, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטא הצירוף 'מפני ש...'?", options: ["תוצאה", "סיבה", "ויתור", "הוספה"], correct: 1, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטאת המילה 'למרות'?", options: ["תוצאה", "ויתור (ניגוד)", "הוספה", "תנאי"], correct: 1, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטא הצירוף 'כמו כן'?", options: ["ניגוד", "תנאי", "הוספה", "סיבה"], correct: 2, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטאת המילה 'כדי'?", options: ["תכלית (מטרה)", "סיבה", "תוצאה", "זמן"], correct: 0, category: "זיהוי קשר" },
+            { text: "המילים 'אם', 'בתנאי ש' מבטאות קשר של:", options: ["זמן", "תנאי", "סיבה", "הוספה"], correct: 1, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטא הצירוף 'בעקבות זאת'?", options: ["סיבה", "תוצאה", "ניגוד", "ויתור"], correct: 1, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטאת המילה 'כאשר'?", options: ["תנאי", "תוצאה", "זמן", "סיבה"], correct: 2, category: "זיהוי קשר" },
+            { text: "איזה קשר לוגי מבטא הצירוף 'אף על פי ש...'?", options: ["סיבה", "ויתור", "הוספה", "תוצאה"], correct: 1, category: "זיהוי קשר" },
+
+            // רמת חשיבה: המרת מילות קישור (החלפה באותה משמעות)
+            { text: "באיזו מילה ניתן להחליף את 'משום ש'? (הוא בכה משום שקיבל מכה)", options: ["לכן", "מפני ש", "אבל", "כאשר"], correct: 1, category: "המרת מילה" },
+            { text: "באיזו מילה ניתן להחליף את 'לכן'? (יורד גשם, לכן נישאר בבית)", options: ["לפיכך", "בגלל", "אולם", "גם"], correct: 0, category: "המרת מילה" },
+            { text: "באיזו מילה ניתן להחליף את 'אולם'? (רציתי לבוא, אולם הייתי עייף)", options: ["לכן", "אבל", "כיוון ש", "בנוסף"], correct: 1, category: "המרת מילה" },
+            { text: "באיזה צירוף ניתן להחליף את 'בנוסף לכך'?", options: ["יתר על כן", "לעומת זאת", "מפני ש", "כדי ש"], correct: 0, category: "המרת מילה" },
+            { text: "באיזה צירוף ניתן להחליף את 'כדי ש...'?", options: ["אף על פי ש", "על מנת ש", "בגלל ש", "לכן"], correct: 1, category: "המרת מילה" },
+            { text: "באיזו מילה ניתן להחליף את 'חרף'? (חרף הגשם, יצאנו לטייל)", options: ["למרות", "בגלל", "לכן", "כאשר"], correct: 0, category: "המרת מילה" },
+            { text: "באיזו מילה ניתן להחליף את 'ואילו'? (אני אוהב קיץ ואילו היא אוהבת חורף)", options: ["ולכן", "ולעומת זאת", "בגלל ש", "וגם"], correct: 1, category: "המרת מילה" },
+            { text: "באיזו מילה ניתן להחליף את 'כיוון ש...'?", options: ["היות ש...", "לכן", "כדי ש...", "אבל"], correct: 0, category: "המרת מילה" },
+            { text: "באיזה צירוף ניתן להחליף את 'לאחר מכן'?", options: ["אחרי כן", "לפני כן", "בגלל זה", "למרות זאת"], correct: 0, category: "המרת מילה" },
+            { text: "באיזו מילה ניתן להחליף את 'אך'? (הוא קטן אך חכם)", options: ["לכן", "אבל", "מפני ש", "גם"], correct: 1, category: "המרת מילה" },
+
+            // שאלות הבנה מעורבות לחיזוק הלמידה
+            { text: "במשפט 'התלבשתי חם כי בחוץ קר', המילה 'כי' מציינת:", options: ["זמן", "סיבה", "תוצאה", "תנאי"], correct: 1, category: "הבנת משמעות" },
+            { text: "השלם: 'לא הכנתי שיעורים, _____ המורה כעסה.'", options: ["בגלל ש", "לכן", "אולם", "למרות"], correct: 1, category: "השלמת משפט" },
+            { text: "השלם: 'הלכתי לישון מוקדם _____ להיות ערני מחר.'", options: ["בגלל ש", "אולם", "על מנת", "לכן"], correct: 2, category: "השלמת משפט" },
+            { text: "מצא את מילת הקישור החריגה (שאינה שייכת לאותה קבוצה):", options: ["אבל", "אולם", "אך", "לכן"], correct: 3, category: "יוצא דופן" },
+            { text: "מצא את מילת הקישור החריגה:", options: ["בגלל", "מפני ש", "משום ש", "למרות"], correct: 3, category: "יוצא דופן" },
+            { text: "מה ההבדל בין 'בגלל' ל-'לכן'?", options: ["שתיהן אותו דבר בדיוק", "'בגלל' מציין סיבה, 'לכן' מציין תוצאה", "'בגלל' מציין תוצאה, 'לכן' מציין סיבה", "שתיהן מציינות הוספה"], correct: 1, category: "הבנת משמעות" },
+            { text: "השלם: '_____ שלא הרגשתי טוב, הלכתי לבית הספר.'", options: ["בגלל", "אף על פי", "לכן", "כאשר"], correct: 1, category: "השלמת משפט" },
+            { text: "איזו מילת קישור מתאימה כדי לחבר בין שתי תכונות טובות? (הוא חכם _____ נחמד)", options: ["אבל", "וגם", "לכן", "בגלל ש"], correct: 1, category: "הבנת משמעות" },
+            { text: "השלם: 'החלון נשבר _____ הרוח החזקה.'", options: ["בגלל", "לכן", "אבל", "כדי"], correct: 0, category: "השלמת משפט" },
+            { text: "איזו מילה אינה מילת קישור?", options: ["אבל", "לכן", "שולחן", "בגלל"], correct: 2, category: "זיהוי בסיסי" }
+        ];
+
+        let board = Array(9).fill(null);
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let pendingCellIndex = null;
+        let availableQuestions = [];
+
+        // פונקציה לערבוב מערך (Fisher-Yates)
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        // טעינת שאלות תוך מניעת חזרות בעזרת localStorage
+        function loadQuestions() {
+            try {
+                const stored = localStorage.getItem('linkingWordsQuestions');
+                if (stored) {
+                    availableQuestions = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.log("Local storage not accessible");
+            }
+
+            // אם נשארו פחות מ-5 שאלות, נאפס את המאגר כדי לא להיתקע
+            if (!availableQuestions || availableQuestions.length < 5) {
+                // העתקה עמוקה של המאגר המקורי כדי לא לשנות אותו
+                availableQuestions = JSON.parse(JSON.stringify(masterQuestionPool));
+                shuffleArray(availableQuestions);
+                saveQuestions();
+            }
+        }
+
+        function saveQuestions() {
+            try {
+                localStorage.setItem('linkingWordsQuestions', JSON.stringify(availableQuestions));
+            } catch (e) {}
+        }
+
+        function getNextQuestion() {
+            if (availableQuestions.length === 0) {
+                loadQuestions(); // טעינה מחדש אם נגמר פתאום
+            }
+            const q = availableQuestions.pop();
+            saveQuestions();
+            return q;
+        }
+
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // שורות
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // עמודות
+            [0, 4, 8], [2, 4, 6]             // אלכסונים
+        ];
+
+        function initBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('button');
+                cell.classList.add('cell', 'h-24', 'w-full', 'bg-white', 'rounded-xl', 'text-5xl', 'font-bold', 'flex', 'items-center', 'justify-center', 'cursor-pointer', 'shadow-sm');
+                cell.setAttribute('data-index', i);
+                cell.setAttribute('aria-label', `משבצת ${i + 1}`);
+                cell.onclick = () => handleCellClick(i);
+                boardElement.appendChild(cell);
+            }
+        }
+
+        let currentQuestion = null;
+
+        function handleCellClick(index) {
+            if (board[index] || !gameActive) return;
+
+            pendingCellIndex = index;
+            currentQuestion = getNextQuestion();
+            showQuestionModal(currentQuestion);
+        }
+
+        function showQuestionModal(q) {
+            document.getElementById('question-category').innerText = q.category;
+            document.getElementById('question-text').innerText = q.text;
+            
+            const answersContainer = document.getElementById('answers-container');
+            answersContainer.innerHTML = '';
+            
+            // יצירת כפתורי התשובות (מערבבים אותן כדי שהתשובה הנכונה לא תהיה תמיד באותו מקום, אבל שומרים על האינדקס המקורי לבדיקה)
+            let optionsWithIndex = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
+            shuffleArray(optionsWithIndex);
+
+            optionsWithIndex.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.classList.add('bg-gray-100', 'hover:bg-blue-100', 'text-gray-800', 'font-medium', 'py-4', 'px-6', 'rounded-xl', 'text-lg', 'text-right', 'transition-colors', 'border', 'border-gray-200');
+                btn.innerText = opt.text;
+                btn.onclick = () => checkAnswer(opt.originalIndex === q.correct);
+                answersContainer.appendChild(btn);
+            });
+
+            document.getElementById('question-modal').classList.remove('hidden');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeModal() {
+            document.getElementById('question-modal').classList.add('hidden');
+            document.body.classList.remove('modal-open');
+            pendingCellIndex = null;
+            // אם סגרו את המודאל בלי לענות, התור עובר
+            switchPlayer();
+        }
+
+        function checkAnswer(isCorrect) {
+            document.getElementById('question-modal').classList.add('hidden');
+            document.body.classList.remove('modal-open');
+
+            if (isCorrect) {
+                // תשובה נכונה
+                board[pendingCellIndex] = currentPlayer;
+                updateCellUI(pendingCellIndex, currentPlayer);
+                showFeedback(true);
+            } else {
+                // תשובה שגויה
+                showFeedback(false);
+            }
+            pendingCellIndex = null;
+        }
+
+        function updateCellUI(index, player) {
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            cell.innerText = player;
+            cell.classList.add(player === 'X' ? 'text-x' : 'text-o');
+            cell.classList.remove('bg-white');
+            cell.classList.add('bg-gray-50');
+            cell.style.cursor = 'default';
+        }
+
+        function showFeedback(isCorrect) {
+            const modal = document.getElementById('feedback-modal');
+            const title = document.getElementById('feedback-title');
+            const message = document.getElementById('feedback-message');
+            const btn = document.getElementById('feedback-btn');
+            const content = document.getElementById('feedback-content');
+
+            if (isCorrect) {
+                title.innerText = "כל הכבוד! 🎉";
+                message.innerText = `תשובה נכונה. תפסת את המשבצת!`;
+                content.className = "bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center border-4 border-green-400";
+                btn.className = "w-full font-bold py-3 px-4 rounded-xl text-white shadow-md transition-transform active:scale-95 bg-green-500 hover:bg-green-600";
+                
+                // נבדוק אם יש ניצחון אחרי תשובה נכונה
+                const winResult = checkWin();
+                if (winResult) {
+                    btn.onclick = () => {
+                        closeFeedbackModal();
+                        handleGameOver(winResult);
+                    };
+                } else {
+                    btn.onclick = () => {
+                        closeFeedbackModal();
+                        switchPlayer();
+                    };
+                }
+            } else {
+                title.innerText = "לא נורא... 😕";
+                message.innerText = `התשובה אינה נכונה. המשבצת נשארה ריקה והתור עובר.`;
+                content.className = "bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center border-4 border-yellow-400";
+                btn.className = "w-full font-bold py-3 px-4 rounded-xl text-white shadow-md transition-transform active:scale-95 bg-yellow-500 hover:bg-yellow-600";
+                btn.onclick = () => {
+                    closeFeedbackModal();
+                    switchPlayer();
+                };
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedback-modal').classList.add('hidden');
+        }
+
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            const display = document.getElementById('current-player-display');
+            display.innerText = currentPlayer;
+            display.className = currentPlayer === 'X' ? 'text-x' : 'text-o';
+        }
+
+        function checkWin() {
+            let roundWon = false;
+            for (let i = 0; i < winningConditions.length; i++) {
+                const [a, b, c] = winningConditions[i];
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    roundWon = true;
+                    break;
+                }
+            }
+
+            if (roundWon) return 'win';
+            if (!board.includes(null)) return 'draw';
+            return null;
+        }
+
+        function handleGameOver(result) {
+            gameActive = false;
+            const modal = document.getElementById('feedback-modal');
+            const title = document.getElementById('feedback-title');
+            const message = document.getElementById('feedback-message');
+            const btn = document.getElementById('feedback-btn');
+            const content = document.getElementById('feedback-content');
+
+            content.className = "bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center border-4 border-blue-500";
+            btn.className = "w-full font-bold py-3 px-4 rounded-xl text-white shadow-md transition-transform active:scale-95 bg-blue-600 hover:bg-blue-700";
+            btn.innerText = "שחק שוב";
+
+            if (result === 'win') {
+                title.innerText = `שחקן ${currentPlayer} ניצח! 🏆`;
+                message.innerText = "כל הכבוד על הידע במילות קישור!";
+            } else {
+                title.innerText = "תיקו! 🤝";
+                message.innerText = "משחק צמוד! שניכם אלופים.";
+            }
+
+            btn.onclick = () => {
+                closeFeedbackModal();
+                resetGame(false);
+            };
+            modal.classList.remove('hidden');
+        }
+
+        function resetGame(manual = false) {
+            board = Array(9).fill(null);
+            currentPlayer = 'X';
+            gameActive = true;
+            document.getElementById('current-player-display').innerText = 'X';
+            document.getElementById('current-player-display').className = 'text-x';
+            initBoard();
+            
+            if (manual) {
+                // נוודא שאין מודאלים פתוחים
+                document.getElementById('question-modal').classList.add('hidden');
+                document.getElementById('feedback-modal').classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        // התנעה ראשונית
+        window.onload = () => {
+            loadQuestions();
+            initBoard();
+        };
+    </script>
+</body>
+</html>

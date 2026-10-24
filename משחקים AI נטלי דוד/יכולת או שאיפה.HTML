@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק מיון: היכולת והשאיפה שלי</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&family=Heebo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Canvas Confetti for Game Completion Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Heebo', sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #fef3c7 100%);
+            min-height: 100vh;
+        }
+        .heading-font {
+            font-family: 'Rubik', sans-serif;
+        }
+
+        /* Card feedback styles */
+        .card-correct {
+            background-color: #f0fdf4 !important;
+            border-color: #22c55e !important;
+            transform: scale(0.98);
+            opacity: 0.85;
+        }
+
+        .card-wrong {
+            background-color: #fff1f2 !important;
+            border-color: #f43f5e !important;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .drop-target-active {
+            border-color: #0284c7 !important;
+            background-color: #e0f2fe !important;
+            transform: scale(1.02);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 pb-16 select-none">
+
+    <header class="bg-white/95 backdrop-blur border-b border-sky-100 sticky top-0 z-30 shadow-sm px-4 py-3">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3 text-center md:text-right">
+                <div class="w-12 h-12 rounded-2xl bg-sky-500 text-white flex items-center justify-center text-2xl shadow-md">
+                    🦋
+                </div>
+                <div>
+                    <h1 class="heading-font text-xl md:text-2xl font-bold text-slate-800">
+                        משחק מיון: היכולת והשאיפה שלי
+                    </h1>
+                    <p class="text-xs md:text-sm text-sky-700 font-medium">
+                        "היכולת מצמיחה לאדם כנפיים, השאיפה מלמדת אותו לעוף"
+                    </p>
+                </div>
+            </div>
+
+            <!-- Score & Progress Controls -->
+            <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                <div class="flex flex-col items-end">
+                    <span class="text-xs font-bold text-slate-500">משפטים שמוינו:</span>
+                    <span id="score-text" class="heading-font text-lg font-extrabold text-sky-600">0 / 20</span>
+                </div>
+                <div class="w-32 bg-slate-200 rounded-full h-3.5 overflow-hidden">
+                    <div id="progress-bar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+                <button onclick="resetGame()" title="התחל מחדש" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2.5 rounded-xl transition font-medium flex items-center gap-1 text-sm">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span class="hidden sm:inline">מחדש</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 mt-6">
+        
+        <!-- Instructional Banner -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-sky-100 mb-6 text-center">
+            <p class="text-base md:text-lg font-bold text-slate-700">
+                💡 קראו את המשפט וקבעו: האם זו <span class="text-sky-600 font-black">היכולת שלי (חוזקה קיימת)</span> או <span class="text-amber-600 font-black">השאיפה שלי (יעד לעתיד)</span>?
+            </p>
+            <p class="text-xs md:text-sm text-slate-500 mt-1">
+                אפשר ללחוץ על הכפתורים בכל משפט או לגרור את המשפט לעמודה המתאימה!
+            </p>
+        </div>
+
+        <!-- Layout Grid: Ability dropzone, Sentence Feed, Aspiration dropzone -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+            <!-- Dropzone: Ability -->
+            <div id="drop-zone-ability" 
+                 ondragover="handleDragOver(event)" 
+                 ondragleave="handleDragLeave(event)" 
+                 ondrop="handleDrop(event, 'היכולת')"
+                 class="md:col-span-3 bg-gradient-to-b from-sky-50 to-blue-50/50 border-3 border-dashed border-sky-300 rounded-3xl p-4 min-h-[300px] flex flex-col transition-all">
+                <div class="text-center pb-3 border-b border-sky-200 mb-3">
+                    <div class="w-12 h-12 bg-sky-500 text-white rounded-2xl flex items-center justify-center text-xl mx-auto mb-2 shadow-sm">
+                        🪶
+                    </div>
+                    <h2 class="heading-font text-xl font-extrabold text-sky-800">היכולת שלי</h2>
+                    <span class="text-xs bg-sky-200/70 text-sky-800 px-2.5 py-1 rounded-full font-bold">חוזקה / מיומנות קיימת</span>
+                </div>
+                <div id="container-ability-sorted" class="space-y-2 flex-grow"></div>
+            </div>
+
+            <!-- Sentence Cards Feed -->
+            <div class="md:col-span-6 space-y-4">
+                <div id="sentences-feed" class="space-y-4"></div>
+            </div>
+
+            <!-- Dropzone: Aspiration -->
+            <div id="drop-zone-aspiration" 
+                 ondragover="handleDragOver(event)" 
+                 ondragleave="handleDragLeave(event)" 
+                 ondrop="handleDrop(event, 'השאיפה')"
+                 class="md:col-span-3 bg-gradient-to-b from-amber-50 to-orange-50/50 border-3 border-dashed border-amber-300 rounded-3xl p-4 min-h-[300px] flex flex-col transition-all">
+                <div class="text-center pb-3 border-b border-amber-200 mb-3">
+                    <div class="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center text-xl mx-auto mb-2 shadow-sm">
+                        🚀
+                    </div>
+                    <h2 class="heading-font text-xl font-extrabold text-amber-800">השאיפה שלי</h2>
+                    <span class="text-xs bg-amber-200/70 text-amber-800 px-2.5 py-1 rounded-full font-bold">יעד / חלום לשנה זו</span>
+                </div>
+                <div id="container-aspiration-sorted" class="space-y-2 flex-grow"></div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <div id="win-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl border-4 border-amber-300 transform transition-all scale-95 opacity-0" id="win-modal-card">
+            <div class="w-24 h-24 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-5xl mx-auto mb-4 animate-bounce">
+                🏆
+            </div>
+            <h2 class="heading-font text-3xl font-extrabold text-slate-800 mb-2">כל הכבוד! אלופים!</h2>
+            <p class="text-slate-600 text-lg mb-6">
+                הצלחתם למיין את כל 20 היכולות והשאיפות בהצלחה רבה! כעת אתם מוכנים ליצור את הפרפר האישי שלכם 🦋
+            </p>
+            <button onclick="resetGame(); closeModal();" class="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xl py-3 px-6 rounded-2xl shadow-lg transition transform hover:-translate-y-0.5">
+                שחק שוב 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Sentences database: 10 Abilities (present tense) & 10 Aspirations (future targets)
+        const rawSentences = [
+            // 10 היכולת (חוזקה קיימת בהווה)
+            { id: 1, type: "היכולת", text: "אני יודע/ת למסור מסירה מדויקת במשחקי כדורגל.", category: "⚽ ספורט ופנאי" },
+            { id: 2, type: "היכולת", text: "אני מצליח/ה להרכיב דגמי לגו מורכבים לפי הוראות.", category: "🧩 מיומנות וריכוז" },
+            { id: 3, type: "היכולת", text: "יש לי סבלנות לעזור לחבר כשהוא עצוב או מרגיש לבד.", category: "🤝 כישור חברתי-רגשי" },
+            { id: 4, type: "היכולת", text: "אני לוקח/ת אחריות וקם/ה בבוקר לבד עם שעון מעורר.", category: "⏰ עצמאות וסדר יום" },
+            { id: 5, type: "היכולת", text: "אני זוכר/ת פרטים קטנים וטריוויה על נושא שאני אוהב/ת.", category: "🧠 זיכרון וידע" },
+            { id: 6, type: "היכולת", text: "אני כבר יודע/ת להכין לעצמי ארוחת ערב במטבח.", category: "🍳 כישורי חיים" },
+            { id: 7, type: "היכולת", text: "אני מצליח/ה לצייר קומיקס ודמויות בצורה קפדנית.", category: "🎨 אמנות ויצירה" },
+            { id: 8, type: "היכולת", text: "אני יודע/ת לקחת הפסקה ולנשום עמוק כשאני מרגיש/ה מוצף/ת.", category: "🧘 וויסות עצמי" },
+            { id: 9, type: "היכולת", text: "אני פותר/ת תרגילים במתמטיקה באופן עצמאי.", category: "📐 למידה" },
+            { id: 10, type: "היכולת", text: "אני כבר יודע/ת לנגן שיר שלם בפסנתר.", category: "🎹 מוזיקה" },
+
+            // 10 השאיפה (יעד/חלום לעתיד)
+            { id: 11, type: "השאיפה", text: "אני רוצה להירשם ולהשתלב בקבוצת חוג ספורט חדשה השנה.", category: "🏀 חברתי וספורט" },
+            { id: 12, type: "השאיפה", text: "החלום שלי הוא ללמוד איך לעמוד ולהרצות מול הכיתה.", category: "🎙️ ביטחון עצמי" },
+            { id: 13, type: "השאיפה", text: "אני מתכנן/ת להתמיד באימון ננגינה חצי שעה בכל יום.", category: "🎸 משמעת עצמית" },
+            { id: 14, type: "השאיפה", text: "אני שואף/ת לנסוע בעתיד בתחבורה ציבורית באופן עצמאי.", category: "🚌 עצמאות בעתיד" },
+            { id: 15, type: "השאיפה", text: "המטרה שלי היא להצליח להכין עוגה ממתכון באינטרנט.", category: "🧁 כישורי חיים ותעוזה" },
+            { id: 16, type: "השאיפה", text: "אני רוצה ללמוד לשמור על איפוק כשאנשים מסביבי מרעישים.", category: "🎧 התמודדות ורווחה" },
+            { id: 17, type: "השאיפה", text: "אני מקווה להצליח לקרוא ספר שלם באנגלית עד סוף השנה.", category: "📚 יעד לימודי" },
+            { id: 18, type: "השאיפה", text: "אני רוצה לאזור אומץ וליזום שיחה ראשון/ה עם חבר חדש.", category: "💬 תקשורת וחברה" },
+            { id: 19, type: "השאיפה", text: "היעד שלי הוא לבנות בעצמי תוכנה או משחק מחשב פשוט.", category: "💻 טכנולוגיה ומיומנות" },
+            { id: 20, type: "השאיפה", text: "אני חולם/ת להשתתף במופע הבית-ספרי בסוף השנה.", category: "🎭 השתתפות והגשמה" }
+        ];
+
+        let sentences = [];
+        let score = 0;
+        let draggedCardId = null;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(isCorrect) {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (isCorrect) {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                    osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.15); // E5
+                    osc.frequency.exponentialRampToValueAtTime(783.99, audioCtx.currentTime + 0.3); // G5
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.4);
+                } else {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime); // A3
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                }
+            } catch (e) {
+                console.log("Audio play error", e);
+            }
+        }
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function initGame() {
+            score = 0;
+            sentences = shuffleArray(rawSentences);
+            document.getElementById('container-ability-sorted').innerHTML = '';
+            document.getElementById('container-aspiration-sorted').innerHTML = '';
+            renderSentences();
+            updateScoreUI();
+        }
+
+        function renderSentences() {
+            const feed = document.getElementById('sentences-feed');
+            feed.innerHTML = '';
+
+            sentences.forEach((item) => {
+                const card = document.createElement('div');
+                card.id = `card-${item.id}`;
+                card.draggable = true;
+                card.ondragstart = (e) => handleDragStart(e, item.id);
+                card.className = `bg-white border-2 border-slate-200 rounded-2xl p-4 shadow-sm transition-all flex flex-col justify-between gap-3 cursor-grab active:cursor-grabbing hover:border-sky-300 hover:shadow-md`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between text-xs font-bold text-slate-400 border-b border-slate-100 pb-1.5">
+                        <span>${item.category}</span>
+                        <span class="text-slate-300"><i class="fa-solid fa-grip-dots-vertical"></i></span>
+                    </div>
+
+                    <div class="text-base md:text-lg font-bold text-slate-800 leading-relaxed py-1">
+                        ${item.text}
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                        <button onclick="checkAnswer(${item.id}, 'היכולת')" class="flex-1 bg-sky-50 hover:bg-sky-500 hover:text-white text-sky-700 border border-sky-300 font-bold py-2 px-3 rounded-xl transition flex items-center justify-center gap-1 text-sm">
+                            <i class="fa-solid fa-feather-pointed"></i>
+                            <span>היכולת שלי</span>
+                        </button>
+
+                        <button onclick="checkAnswer(${item.id}, 'השאיפה')" class="flex-1 bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-700 border border-amber-300 font-bold py-2 px-3 rounded-xl transition flex items-center justify-center gap-1 text-sm">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>השאיפה שלי</span>
+                        </button>
+                    </div>
+
+                    <div id="feedback-${item.id}" class="hidden text-xs font-bold text-center mt-1"></div>
+                `;
+
+                feed.appendChild(card);
+            });
+        }
+
+        function handleDragStart(e, sentenceId) {
+            draggedCardId = sentenceId;
+            e.dataTransfer.setData('text/plain', sentenceId);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drop-target-active');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drop-target-active');
+        }
+
+        function handleDrop(e, targetType) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drop-target-active');
+            if (draggedCardId) {
+                checkAnswer(draggedCardId, targetType);
+            }
+        }
+
+        function checkAnswer(sentenceId, selectedType) {
+            const sentenceObj = rawSentences.find(s => s.id === sentenceId);
+            const card = document.getElementById(`card-${sentenceId}`);
+            if (!card) return;
+
+            const feedback = document.getElementById(`feedback-${sentenceId}`);
+
+            if (sentenceObj.type === selectedType) {
+                playSound(true);
+                score++;
+
+                const targetContainerId = selectedType === 'היכולת' ? 'container-ability-sorted' : 'container-aspiration-sorted';
+                const targetContainer = document.getElementById(targetContainerId);
+
+                const sortedCard = document.createElement('div');
+                sortedCard.className = `p-3 rounded-xl text-xs md:text-sm font-bold shadow-sm border flex items-center justify-between gap-2 transition ${
+                    selectedType === 'היכולת' ? 'bg-sky-100 text-sky-900 border-sky-300' : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`;
+                sortedCard.innerHTML = `
+                    <span>${sentenceObj.text}</span>
+                    <span class="text-base text-emerald-600">✔️</span>
+                `;
+
+                targetContainer.appendChild(sortedCard);
+                card.remove();
+
+                updateScoreUI();
+
+                if (score === 20) {
+                    setTimeout(triggerWinModal, 600);
+                }
+
+            } else {
+                playSound(false);
+
+                card.classList.add('card-wrong');
+                feedback.className = "block text-xs font-bold text-rose-600 mt-1 pt-1 border-t border-rose-200";
+                feedback.innerHTML = `💔 לא בדיוק... נסו שוב!`;
+
+                setTimeout(() => {
+                    card.classList.remove('card-wrong');
+                }, 800);
+            }
+        }
+
+        function updateScoreUI() {
+            document.getElementById('score-text').textContent = `${score} / 20`;
+            const percentage = (score / 20) * 100;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+        }
+
+        function triggerWinModal() {
+            const modal = document.getElementById('win-modal');
+            const card = document.getElementById('win-modal-card');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                card.classList.remove('scale-95', 'opacity-0');
+                card.classList.add('scale-100', 'opacity-100');
+            }, 50);
+
+            confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.6 }
+            });
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('win-modal');
+            modal.classList.add('hidden');
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+</body>
+</html>

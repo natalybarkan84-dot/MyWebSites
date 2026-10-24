@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק זיכרון מילים - סיכום שיעור</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Heebo & Assistant -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Heebo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Assistant', 'Heebo', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+        }
+        /* 3D Flip Effects */
+        .perspective {
+            perspective: 1000px;
+        }
+        .card-inner {
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200 py-4 px-6">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900 sm:text-2xl">משחק זיכרון מילים</h1>
+                    <p class="text-xs sm:text-sm text-gray-500 font-medium font-semibold">מצאו את זוגות המילים התואמים מתוך השיעור!</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <!-- Sound Toggle -->
+                <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition" title="השתק/הפעל צלילים">
+                    <svg id="soundOnIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 11-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 11-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+                    </svg>
+                    <svg id="soundOffIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <button onclick="restartGame()" class="text-sm font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 px-4 rounded-xl transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18" />
+                    </svg>
+                    אתחול מחדש
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6 flex flex-col gap-6">
+        
+        <!-- Scoreboard / Status -->
+        <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-6 w-full sm:w-auto justify-around sm:justify-start">
+                <!-- Timer -->
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400 text-sm">זמן שעבר:</span>
+                    <span id="timer" class="font-mono text-xl font-bold text-gray-800">00:00</span>
+                </div>
+                <!-- Moves Counter -->
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400 text-sm">מהלכים:</span>
+                    <span id="movesCount" class="text-xl font-bold text-indigo-600">0</span>
+                </div>
+                <!-- Pairs Found -->
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400 text-sm">זוגות שנמצאו:</span>
+                    <span class="text-xl font-bold text-emerald-600"><span id="matchCount">0</span>/10</span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full sm:w-64">
+                <div class="flex justify-between mb-1.5 text-xs font-semibold text-gray-500">
+                    <span>אחוז השלמה</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div id="progressBar" class="bg-emerald-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards Grid Board -->
+        <div class="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-gray-100 flex justify-center">
+            <div id="gridContainer" class="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-4 max-w-4xl w-full">
+                <!-- Generated dynamically by JS -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-100 border-t border-gray-200 py-4 text-center text-sm text-gray-500">
+        <p>משחק זיכרון מילים - סיכום חווייתי לשיעור עברית 🎓</p>
+    </footer>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <canvas id="confettiCanvas" class="absolute inset-0 pointer-events-none w-full h-full"></canvas>
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl relative text-center z-10 border border-emerald-100 animate-in fade-in zoom-in-95 duration-250">
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+            </div>
+            <h3 class="text-3xl font-extrabold text-gray-900 mb-2">אלופים! סיימתם בהצלחה! 🎉</h3>
+            <p class="text-gray-500 mb-6 text-base font-medium">מצאתם את כל זוגות המילים התואמות.</p>
+            
+            <div class="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-2xl mb-8 border border-gray-100">
+                <div class="text-center">
+                    <span class="block text-xs text-gray-400 font-semibold mb-1">זמן כולל</span>
+                    <span id="finalTime" class="text-lg font-bold text-indigo-950">00:00</span>
+                </div>
+                <div class="text-center border-x border-gray-200">
+                    <span class="block text-xs text-gray-400 font-semibold mb-1">מספר מהלכים</span>
+                    <span id="finalMoves" class="text-lg font-bold text-indigo-600">0</span>
+                </div>
+                <div class="text-center">
+                    <span class="block text-xs text-gray-400 font-semibold mb-1">ציון</span>
+                    <span id="finalScore" class="text-lg font-bold text-emerald-600">100%</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="restartGame()" class="flex-grow bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl transition shadow-lg shadow-indigo-200 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18" />
+                    </svg>
+                    לשחק שוב
+                </button>
+                <button onclick="closeVictory()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 px-6 rounded-2xl transition">
+                    סגור חלון
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        // Game Dataset - 10 words
+        const wordsList = [
+            "חסד",
+            "נאמן, מסור",
+            "גאולה",
+            "גלמוד",
+            "ארץ נכר",
+            "ביכורים",
+            "כיליון",
+            "אושר",
+            "עושר",
+            "לשוב"
+        ];
+
+        // State variables
+        let soundEnabled = true;
+        let cards = [];
+        let flippedCards = [];
+        let matchedCount = 0;
+        let movesCount = 0;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let gameStarted = false;
+        let isLocked = false; // prevents flipping more than 2 cards concurrently
+
+        // Audio Context for sound effects
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        // Play synthetic sound effects
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'click') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(450, now);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                } else if (type === 'match') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'fail') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.21);
+                } else if (type === 'victory') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'sine';
+                    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00];
+                    notes.forEach((freq, idx) => {
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    });
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                    osc.start(now);
+                    osc.stop(now + 0.9);
+                }
+            } catch (e) {
+                console.warn("Audio error:", e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const soundOnIcon = document.getElementById('soundOnIcon');
+            const soundOffIcon = document.getElementById('soundOffIcon');
+            if (soundEnabled) {
+                soundOnIcon.classList.remove('hidden');
+                soundOffIcon.classList.add('hidden');
+            } else {
+                soundOnIcon.classList.add('hidden');
+                soundOffIcon.classList.remove('hidden');
+            }
+        }
+
+        // Timer
+        function startTimer() {
+            if (gameStarted) return;
+            gameStarted = true;
+            secondsElapsed = 0;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(secondsElapsed / 60);
+            const seconds = secondsElapsed % 60;
+            const format = (num) => String(num).padStart(2, '0');
+            document.getElementById('timer').innerText = `${format(minutes)}:${format(seconds)}`;
+        }
+
+        // Shuffle Helper
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        // Initialize / Restart Board
+        function setupGame() {
+            const gridContainer = document.getElementById('gridContainer');
+            gridContainer.innerHTML = '';
+            flippedCards = [];
+            matchedCount = 0;
+            movesCount = 0;
+            secondsElapsed = 0;
+            gameStarted = false;
+            isLocked = false;
+            stopTimer();
+
+            document.getElementById('movesCount').innerText = '0';
+            document.getElementById('matchCount').innerText = '0';
+            document.getElementById('progressPercent').innerText = '0%';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('timer').innerText = '00:00';
+
+            // Create 10 pairs (total of 20 cards)
+            let cardDeck = [];
+            wordsList.forEach((word, index) => {
+                // Add first card of pair
+                cardDeck.push({ id: index, word: word });
+                // Add second card of pair
+                cardDeck.push({ id: index, word: word });
+            });
+
+            // Shuffle cards
+            cards = shuffle(cardDeck);
+
+            // Generate HTML structure
+            cards.forEach((card, index) => {
+                const cardOuter = document.createElement('div');
+                cardOuter.className = 'perspective aspect-square w-full h-full';
+                
+                const cardInner = document.createElement('div');
+                cardInner.className = 'card-inner w-full h-full relative cursor-pointer transform-style-3d';
+                cardInner.dataset.index = index;
+                cardInner.dataset.id = card.id;
+
+                // Card Front (What user sees before clicking - the card back/cover)
+                const frontFace = document.createElement('div');
+                frontFace.className = 'card-front absolute inset-0 bg-gradient-to-br from-indigo-500 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 rounded-2xl flex items-center justify-center text-white text-2xl sm:text-3xl font-black shadow-md border border-indigo-400 select-none';
+                frontFace.innerHTML = '✨';
+
+                // Card Back (The revealed word face)
+                const backFace = document.createElement('div');
+                backFace.className = 'card-back absolute inset-0 bg-white border-2 border-indigo-200 rounded-2xl flex flex-col items-center justify-center p-2 text-center text-gray-800 font-extrabold shadow-sm select-none break-words text-sm sm:text-base leading-tight';
+                
+                const wordSpan = document.createElement('span');
+                wordSpan.innerText = card.word;
+                backFace.appendChild(wordSpan);
+
+                cardInner.appendChild(frontFace);
+                cardInner.appendChild(backFace);
+                cardOuter.appendChild(cardInner);
+
+                // Add flip handler
+                cardInner.addEventListener('click', () => handleCardFlip(cardInner));
+
+                gridContainer.appendChild(cardOuter);
+            });
+        }
+
+        // Core flip and matching logic
+        function handleCardFlip(cardElement) {
+            if (isLocked) return;
+            const index = cardElement.dataset.index;
+
+            // If already matched or already flipped, ignore click
+            if (cardElement.classList.contains('flipped') || cardElement.classList.contains('matched')) {
+                return;
+            }
+
+            // Start timer on first move
+            startTimer();
+            playSound('click');
+
+            // Flip current card
+            cardElement.classList.add('flipped');
+            flippedCards.push(cardElement);
+
+            if (flippedCards.length === 2) {
+                movesCount++;
+                document.getElementById('movesCount').innerText = movesCount;
+                isLocked = true;
+
+                const firstCard = flippedCards[0];
+                const secondCard = flippedCards[1];
+
+                if (firstCard.dataset.id === secondCard.dataset.id) {
+                    // It's a MATCH!
+                    setTimeout(() => {
+                        playSound('match');
+                        
+                        firstCard.classList.add('matched');
+                        secondCard.classList.add('matched');
+                        
+                        // Style matched cards specifically (Emerald green theme)
+                        const firstBack = firstCard.querySelector('.card-back');
+                        const secondBack = secondCard.querySelector('.card-back');
+                        firstBack.classList.remove('border-indigo-200');
+                        firstBack.classList.add('border-emerald-500', 'bg-emerald-50', 'text-emerald-800');
+                        secondBack.classList.remove('border-indigo-200');
+                        secondBack.classList.add('border-emerald-500', 'bg-emerald-50', 'text-emerald-800');
+
+                        matchedCount++;
+                        updateProgress();
+
+                        // Clear flipped trackers
+                        flippedCards = [];
+                        isLocked = false;
+
+                        // Check Victory condition
+                        if (matchedCount === wordsList.length) {
+                            triggerVictory();
+                        }
+                    }, 400);
+
+                } else {
+                    // NOT A MATCH! Flip back
+                    setTimeout(() => {
+                        playSound('fail');
+                        
+                        // Add shake or vibration animation
+                        firstCard.classList.add('animate-ping');
+                        secondCard.classList.add('animate-ping');
+                        setTimeout(() => {
+                            firstCard.classList.remove('animate-ping');
+                            secondCard.classList.remove('animate-ping');
+                        }, 200);
+
+                        firstCard.classList.remove('flipped');
+                        secondCard.classList.remove('flipped');
+
+                        flippedCards = [];
+                        isLocked = false;
+                    }, 1100);
+                }
+            }
+        }
+
+        function updateProgress() {
+            document.getElementById('matchCount').innerText = matchedCount;
+            const percent = Math.round((matchedCount / wordsList.length) * 100);
+            document.getElementById('progressPercent').innerText = `${percent}%`;
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        }
+
+        function triggerVictory() {
+            stopTimer();
+            playSound('victory');
+
+            // Formulate score (Perfect game is 10 moves. Accuracy rating decreases with extra moves)
+            const perfectionRate = 10 / movesCount;
+            const finalScorePercent = Math.min(100, Math.round(perfectionRate * 100));
+
+            const minutes = Math.floor(secondsElapsed / 60);
+            const seconds = secondsElapsed % 60;
+            const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+            document.getElementById('finalTime').innerText = formattedTime;
+            document.getElementById('finalMoves').innerText = movesCount;
+            document.getElementById('finalScore').innerText = `${finalScorePercent}%`;
+
+            // Open Modal
+            document.getElementById('victoryModal').classList.remove('hidden');
+            startConfetti();
+        }
+
+        function closeVictory() {
+            document.getElementById('victoryModal').classList.add('hidden');
+            stopConfetti();
+        }
+
+        function restartGame() {
+            document.getElementById('victoryModal').classList.add('hidden');
+            stopConfetti();
+            setupGame();
+        }
+
+        // HTML5 Canvas Confetti Animation
+        let canvas = document.getElementById('confettiCanvas');
+        let ctx = canvas.getContext('2d');
+        let animationFrameId = null;
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        class ConfettiParticle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height - canvas.height;
+                this.size = Math.random() * 8 + 6;
+                this.speedX = Math.random() * 4 - 2;
+                this.speedY = Math.random() * 3 + 3;
+                this.color = `hsl(${Math.random() * 360}, 90%, 60%)`;
+                this.rotation = Math.random() * 360;
+                this.rotationSpeed = Math.random() * 4 - 2;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.rotation += this.rotationSpeed;
+                if (this.y > canvas.height) {
+                    this.y = -20;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate((this.rotation * Math.PI) / 180);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        function startConfetti() {
+            resizeCanvas();
+            particles = [];
+            for (let i = 0; i < 120; i++) {
+                particles.push(new ConfettiParticle());
+            }
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            animationFrameId = requestAnimationFrame(animateConfetti);
+        }
+
+        function stopConfetti() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // Init game
+        window.onload = function() {
+            setupGame();
+        };
+    </script>
+</body>
+</html>

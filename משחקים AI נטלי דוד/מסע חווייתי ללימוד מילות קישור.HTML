@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מסע חווייתי להבנת מילות קישור בטקסט</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Canvas Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Custom Styling & Animations -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Rubik', sans-serif;
+            background-color: #f8fafc;
+            user-select: none;
+        }
+
+        .droppable-slot {
+            display: inline-flex;
+            vertical-align: middle;
+            margin-left: 0.25rem;
+            margin-right: 0.25rem;
+            min-width: 95px;
+            min-height: 42px;
+            border: 2px dashed #a5b4fc;
+            background-color: #eef2ff;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .droppable-slot.drag-over {
+            background-color: #c7d2fe;
+            border-color: #4f46e5;
+            transform: scale(1.05);
+        }
+
+        .droppable-slot.filled {
+            border-style: solid;
+            border-color: #6366f1;
+            background-color: #ffffff;
+        }
+
+        .droppable-slot.correct {
+            border-color: #10b981;
+            background-color: #ecfdf5;
+            color: #065f46;
+        }
+
+        .droppable-slot.incorrect {
+            border-color: #ef4444;
+            background-color: #fef2f2;
+            color: #991b1b;
+        }
+
+        .word-card {
+            cursor: grab;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .word-card:active {
+            cursor: grabbing;
+        }
+
+        .word-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px -2px rgba(99, 102, 241, 0.25);
+        }
+
+        /* Memory Card Flip Effect */
+        .memory-card {
+            perspective: 1000px;
+            height: 120px;
+        }
+
+        .memory-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.5s;
+            transform-style: preserve-3d;
+        }
+
+        .memory-card.flipped .memory-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .memory-card-front, .memory-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .memory-card-front {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+        }
+
+        .memory-card-back {
+            background-color: white;
+            color: #1e293b;
+            transform: rotateY(180deg);
+            border: 2px solid #e0e7ff;
+        }
+
+        /* Sentence Audio Button */
+        .sentence-audio-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            transition: all 0.2s ease;
+            margin: 0 4px;
+            vertical-align: middle;
+        }
+
+        .sentence-audio-btn:hover {
+            background-color: #c7d2fe;
+            color: #312e81;
+            transform: scale(1.1);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-indigo-700 via-indigo-600 to-purple-700 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+            
+            <!-- App Title -->
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
+                    <i class="fa-solid fa-graduation-cap text-2xl text-amber-300"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-2xl font-black tracking-wide text-white drop-shadow">מסע חווייתי להבנת מילות קישור בטקסט</h1>
+                </div>
+            </div>
+
+            <!-- Global Audio & Nikkud Controls -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <!-- Nikkud Toggle Button -->
+                <button id="toggle-nikkud-btn" onclick="toggleGlobalNikkud()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/30 rounded-xl text-xs md:text-sm font-semibold transition flex items-center gap-2">
+                    <i class="fa-solid fa-language text-amber-300"></i>
+                    <span id="nikkud-btn-text">הצג ניקוד</span>
+                </button>
+
+                <!-- Speed Controls -->
+                <div class="flex items-center bg-white/10 border border-white/30 rounded-xl px-2 py-1 text-xs md:text-sm">
+                    <i class="fa-solid fa-gauge-high text-amber-300 ml-1.5"></i>
+                    <span class="ml-1 text-xs opacity-80">מהירות:</span>
+                    <button onclick="setAudioSpeed(0.8)" id="speed-08" class="px-1.5 py-0.5 rounded hover:bg-white/20 text-xs transition">0.8x</button>
+                    <button onclick="setAudioSpeed(1.0)" id="speed-10" class="px-1.5 py-0.5 rounded bg-white/30 font-bold text-xs transition">1x</button>
+                    <button onclick="setAudioSpeed(1.25)" id="speed-125" class="px-1.5 py-0.5 rounded hover:bg-white/20 text-xs transition">1.25x</button>
+                </div>
+
+                <!-- Stop Audio Button -->
+                <button onclick="stopAudioPlayback()" class="px-3 py-1.5 bg-rose-500/90 hover:bg-rose-600 rounded-xl text-white text-xs md:text-sm font-bold transition shadow-sm flex items-center gap-1.5" title="עצור הקראה">
+                    <i class="fa-solid fa-circle-stop"></i>
+                    <span>עצור</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="max-w-6xl mx-auto px-4 mt-1 flex gap-1 overflow-x-auto no-scrollbar">
+            <button onclick="switchTab('game')" id="tab-btn-game" class="nav-tab px-4 py-2.5 rounded-t-xl font-bold text-sm transition flex items-center gap-2 bg-white text-indigo-700 shadow">
+                <i class="fa-solid fa-puzzle-piece"></i>
+                <span>משחק השלמה</span>
+            </button>
+            <button onclick="switchTab('reader')" id="tab-btn-reader" class="nav-tab px-4 py-2.5 rounded-t-xl font-bold text-sm transition flex items-center gap-2 text-white/80 hover:bg-white/10">
+                <i class="fa-solid fa-book-open"></i>
+                <span>קריאת הטקסט</span>
+            </button>
+            <button onclick="switchTab('glossary')" id="tab-btn-glossary" class="nav-tab px-4 py-2.5 rounded-t-xl font-bold text-sm transition flex items-center gap-2 text-white/80 hover:bg-white/10">
+                <i class="fa-solid fa-spell-check"></i>
+                <span>מילון מילות קישור</span>
+            </button>
+            <button onclick="switchTab('memory')" id="tab-btn-memory" class="nav-tab px-4 py-2.5 rounded-t-xl font-bold text-sm transition flex items-center gap-2 text-white/80 hover:bg-white/10">
+                <i class="fa-solid fa-clone"></i>
+                <span>משחק זיכרון</span>
+            </button>
+            <button onclick="switchTab('worksheet')" id="tab-btn-worksheet" class="nav-tab px-4 py-2.5 rounded-t-xl font-bold text-sm transition flex items-center gap-2 text-white/80 hover:bg-white/10">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>דף עבודה</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+
+        <!-- TAB 1: Drag and Drop Completion Game -->
+        <section id="tab-game" class="tab-content space-y-6">
+            <!-- Game Controls Banner -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="text-indigo-900 font-bold text-sm md:text-base flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-600"></i> מצב בדיקה:
+                    </span>
+                    <button id="feedback-mode-btn" onclick="toggleFeedbackMode()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs md:text-sm font-bold shadow-sm transition flex items-center gap-2 border border-indigo-500">
+                        <i id="feedback-mode-icon" class="fa-solid fa-clock"></i>
+                        <span id="feedback-mode-text">בדיקה בסוף המשחק</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="resetDragGame()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs md:text-sm font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i> איפוס
+                    </button>
+                    <button id="check-game-btn" onclick="checkDragGame()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> בדיקת תשובות
+                    </button>
+                </div>
+            </div>
+
+            <!-- Instruction Box -->
+            <div class="bg-amber-50 border-r-4 border-amber-400 p-4 rounded-xl text-amber-900 text-sm md:text-base flex items-start gap-3 shadow-sm">
+                <i class="fa-solid fa-lightbulb text-amber-500 text-xl mt-0.5"></i>
+                <div>
+                    <p class="font-bold">הוראות למשחק:</p>
+                    <p>גררו את מילות הקישור ממחסן המילים בתחתית העמוד אל המקומות המתאימים בטקסט. לחצו על כפתור הרמקול הראשי בראש הפסקה להקראת הפסקה כולה, או לחצו על סמל הרמקול הקטן לצד כל משפט להקראת המשפט הספציפי עד סימן הפיסוק!</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 md:p-8 shadow-md border border-slate-200 space-y-4">
+                <div class="flex justify-between items-center border-b pb-3 border-slate-100 flex-wrap gap-2">
+                    <span class="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                        <i class="fa-solid fa-align-right text-indigo-600"></i> הטקסט להשלמה:
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="readDragParagraph()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs md:text-sm font-bold shadow transition flex items-center gap-2">
+                            <i class="fa-solid fa-volume-high"></i> הקראת הפסקה כולה
+                        </button>
+                    </div>
+                </div>
+
+                <div id="drag-sentences-container" class="text-lg md:text-2xl leading-loose text-slate-800">
+                    <!-- Dynamic paragraph populated via JS -->
+                </div>
+            </div>
+
+            <!-- Word Bank -->
+            <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-indigo-700 space-y-4">
+                <div class="flex justify-between items-center border-b border-indigo-800 pb-3">
+                    <h3 class="text-lg font-bold flex items-center gap-2 text-amber-300">
+                        <i class="fa-solid fa-box-open"></i> מחסן מילות קישור
+                    </h3>
+                    <span class="text-xs text-indigo-200 bg-indigo-800/60 px-3 py-1 rounded-full border border-indigo-700">
+                        ניתן לגרור או ללחוץ על מילה
+                    </span>
+                </div>
+                <div id="word-bank-container" class="flex flex-wrap gap-3 min-h-[60px] items-center p-2">
+                    <!-- Dynamic words populated via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: Text Reader -->
+        <section id="tab-reader" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-3xl p-6 md:p-10 shadow-lg border border-slate-200 space-y-6">
+                <div class="flex justify-between items-center border-b pb-4 border-slate-100">
+                    <h2 class="text-xl md:text-2xl font-black text-indigo-900 flex items-center gap-3">
+                        <i class="fa-solid fa-book-reader text-indigo-600"></i>
+                        <span>הטקסט המלא - קריאה והאזנה</span>
+                    </h2>
+                    <button onclick="readFullTextParagraph()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow transition flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high"></i> הקראת הטקסט המלא
+                    </button>
+                </div>
+
+                <div id="full-text-display" class="text-lg md:text-2xl leading-loose text-slate-800 bg-slate-50 p-6 md:p-8 rounded-2xl border border-slate-200">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: Glossary -->
+        <section id="tab-glossary" class="tab-content hidden space-y-6">
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-indigo-900 text-sm md:text-base flex items-center gap-3">
+                <i class="fa-solid fa-circle-info text-indigo-600 text-xl"></i>
+                <p>מילון מילות הקישור שלפניכם מציג את תפקידן התחבירי של מילות הקישור בטקסט, בצירוף דוגמאות והקראה קולית נשית.</p>
+            </div>
+
+            <div id="glossary-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Dynamic cards -->
+            </div>
+        </section>
+
+        <!-- TAB 4: Memory Game -->
+        <section id="tab-memory" class="tab-content hidden space-y-6">
+            <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-4">
+                    <span class="font-bold text-slate-700 text-sm md:text-base">
+                        <i class="fa-solid fa-trophy text-amber-500"></i> צעדים: <span id="memory-moves" class="text-indigo-600 font-extrabold">0</span>
+                    </span>
+                    <span class="font-bold text-slate-700 text-sm md:text-base">
+                        <i class="fa-solid fa-star text-emerald-500"></i> זוגות שנמצאו: <span id="memory-matches" class="text-emerald-600 font-extrabold">0 / 9</span>
+                    </span>
+                </div>
+                <button onclick="initMemoryGame()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs md:text-sm font-bold transition">
+                    <i class="fa-solid fa-rotate-right"></i> משחק חדש
+                </button>
+            </div>
+
+            <div id="memory-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <!-- Memory cards -->
+            </div>
+        </section>
+
+        <!-- TAB 5: Interactive Worksheet -->
+        <section id="tab-worksheet" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-3xl p-6 md:p-8 shadow-md border border-slate-200 space-y-8">
+                <div class="border-b pb-4">
+                    <h2 class="text-xl md:text-2xl font-black text-indigo-900 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-ruler text-indigo-600"></i> דף עבודה אינטראקטיבי
+                    </h2>
+                    <p class="text-sm text-slate-500 mt-1">ענו על השאלות הבאות כדי לבדוק את הבנתכם בנושא מילות קישור.</p>
+                </div>
+
+                <div id="worksheet-questions-container" class="space-y-8">
+                    <!-- Dynamic worksheet questions -->
+                </div>
+
+                <div class="pt-4 border-t flex justify-end">
+                    <button onclick="checkWorksheetAnswers()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-base font-bold rounded-2xl shadow-lg transition flex items-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> בדוק את התשובות שלי
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-6 text-center border-t border-slate-800 mt-auto">
+        <div class="max-w-5xl mx-auto px-4 space-y-2">
+            <p class="font-medium text-slate-300">דף עבודה ויישומון אינטראקטיבי בלשון ועברית - מילות קישור</p>
+            <p>פותח עם הקראה אנושית נשית, משחק גרירה ומשחק זיכרון</p>
+            <p class="text-indigo-300 font-semibold text-sm mt-2">© כל הזכויות שמורות - נטלי דוד</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+    <script>
+        
+        // 1. Core Data Structures: Linking words dictionary & mappings with full Nikkud for female TTS
+        const LINKING_WORDS_DATA = [
+            {
+                id: 0,
+                plain: "מפני ש",
+                pointed: "מִפְּנֵי שֶׁ",
+                type: "סיבה",
+                typePointed: "סִבָּה",
+                meaning: "מציין את הסיבה להתרחשות הדבר.",
+                meaningPointed: "מְצַיֵּן אֶת הַסִּבָּה לְהִתְרַחֲשׁוּת הַדָּבָר.",
+                example: "קמתי מוקדם מפני שרציתי להגיע בזמן."
+            },
+            {
+                id: 1,
+                plain: "אבל",
+                pointed: "אֲבָל",
+                type: "ניגוד",
+                typePointed: "נִגּוּד",
+                meaning: "מציג ניגוד או סתירה לדבר שנאמר קודם.",
+                meaningPointed: "מַצִּיג נִגּוּד אוֹ סְתִירָה לַדָּבָר שֶׁנֶּאֱמַר קוֹדֶם.",
+                example: "רציתי להגיע בזמן, אבל האוטובוס איחר."
+            },
+            {
+                id: 2,
+                plain: "ולכן",
+                pointed: "וְלָכֵן",
+                type: "תוצאה",
+                typePointed: "תּוֹצָאָה",
+                meaning: "מציין את התוצאה הסופית של המצב.",
+                meaningPointed: "מְצַיֵּן אֶת הַתּוֹצָאָה הַסּוֹפִית שֶׁל הַמַּצָּב.",
+                example: "האוטובוס איחר, ולכן הגעתי באיחור."
+            },
+            {
+                id: 3,
+                plain: "אך",
+                pointed: "אַךְ",
+                type: "סתירה / ניגוד",
+                typePointed: "סְתִירָה / נִגּוּד",
+                meaning: "מילת ניגוד עדינה המשמשת לחיבור משפטים.",
+                meaningPointed: "מִילַת נִגּוּד עֲדִינָה הַמְּשַׁמֶּשֶׁת לְחִבּוּר מִשְׁפָּטִים.",
+                example: "המורה כעסה, אך היא הבינה אותי."
+            },
+            {
+                id: 4,
+                plain: "אז",
+                pointed: "אָז",
+                type: "רצף זמנים / מסקנה",
+                typePointed: "רֶצֶף זְמַנִּים / מַסְקָנָה",
+                meaning: "מציין שלב הבא ברצף האירועים.",
+                meaningPointed: "מְצַיֵּן שָׁלָב הַבָּא בְּרֶצֶף הָאֵרוּעִים.",
+                example: "היא הבינה אותי, אז נכנסתי לכיתה."
+            },
+            {
+                id: 5,
+                plain: "בנוסף",
+                pointed: "בְּנוֹסָף",
+                type: "הוספה",
+                typePointed: "הוֹסָפָה",
+                meaning: "מוסיף פרט או מידע חדש לנושא.",
+                meaningPointed: "מוֹסִיף פְּרָט אוֹ מֵידָע חָדָשׁ לַנּוֹשָׂא.",
+                example: "בנוסף, שכחתי את הציוד בבית."
+            },
+            {
+                id: 6,
+                plain: "כך ש",
+                pointed: "כָּךְ שֶׁ",
+                type: "תוצאה",
+                typePointed: "תּוֹצָאָה",
+                meaning: "מציג תוצאה שנובעת מהמצב הקודם.",
+                meaningPointed: "מַצִּיג תּוֹצָאָה שֶׁנּוֹבַעַת מֵהַמַּצָּב הַקּוֹדֵם.",
+                example: "שכחתי ציוד, כך שלא יכולתי לכתוב."
+            },
+            {
+                id: 7,
+                plain: "אולם",
+                pointed: "אוּלָם",
+                type: "ניגוד / הסתייגות",
+                typePointed: "נִגּוּד / הַסְתַּיְּגוּת",
+                meaning: "מילת קישור המבטאת ניגוד ברמה גבוהה.",
+                meaningPointed: "מִילַת קִישׁוּר הַמְּבַטֵּאת נִגּוּד בְּרָמָה גְּבוֹהָה.",
+                example: "לא יכולתי לכתוב, אולם חבר הלווה לי עט."
+            },
+            {
+                id: 8,
+                plain: "וכך",
+                pointed: "וְכָךְ",
+                type: "אופן / תוצאה",
+                typePointed: "אֹפֶן / תּוֹצָאָה",
+                meaning: "מבטא אופן שבו הדבר התאפשר או הסתיים.",
+                meaningPointed: "מְבַטֵּא אֹפֶן שֶׁבּוֹ הַדָּבָר הִתְאַפְשֵׁר אוֹ הִסְתַּיֵּם.",
+                example: "הוא הלווה לי עט וכך יכולתי להמשיך ללמוד."
+            }
+        ];
+
+        // 2. Sentence breakdown for clause/sentence reading up to punctuation marks
+        const SENTENCES_DATA = [
+            {
+                id: 0,
+                prefixPlain: "הבוקר קמתי מוקדם מאוד",
+                prefixPointed: "הַבֹּקֶר קַמְתִּי מוּקְדָם מְאֹד",
+                slotId: 0,
+                suffixPlain: "רציתי להגיע לבית הספר בזמן.",
+                suffixPointed: "רָצִיתִי לְהַגִּיעַ לְבֵית הַסֵּפֶר בַּזְּמַן."
+            },
+            {
+                id: 1,
+                prefixPlain: "",
+                prefixPointed: "",
+                slotId: 1,
+                suffixPlain: ", האוטובוס איחר בחצי שעה,",
+                suffixPointed: ", הָאוֹטוֹבּוּס אֵחַר בַּחֲצִי שָׁעָה,",
+                hasSecondSlot: true,
+                slotId2: 2,
+                suffix2Plain: "הגעתי באיחור לשיעור הראשון.",
+                suffix2Pointed: "הִגַּעְתִּי בְּאִיחוּר לַשִּׁעוּר הָרִאשׁוֹן."
+            },
+            {
+                id: 2,
+                prefixPlain: "המורה כעסה עליי,",
+                prefixPointed: "הַמּוֹרָה כָּעֲסָה עָלַי,",
+                slotId: 3,
+                suffixPlain: "לאחר שהסברתי לה מה קרה, היא הבינה אותי.",
+                suffixPointed: "לְאַחַר שֶׁהִסְבַּרְתִּי לָהּ מַה קָּרָה, הִיא הֵבִינָה אוֹתִי."
+            },
+            {
+                id: 3,
+                prefixPlain: "",
+                prefixPointed: "",
+                slotId: 4,
+                suffixPlain: "נכנסתי לכיתה וישבתי במקום.",
+                suffixPointed: "נִכְנַסְתִּי לַכִּתָּה וְיָשַׁבְתִּי בַּמָּקוֹם."
+            },
+            {
+                id: 4,
+                prefixPlain: "",
+                prefixPointed: "",
+                slotId: 5,
+                suffixPlain: ", שכחתי את הציוד בבית,",
+                suffixPointed: ", שָׁכַחְתִּי אֶת הַצִּיּוּד בַּבַּיִת,",
+                hasSecondSlot: true,
+                slotId2: 6,
+                suffix2Plain: "לא יכולתי לכתוב,",
+                suffix2Pointed: "לֹא יָכֹלְתִּי לִכְתֹּב,",
+                hasThirdSlot: true,
+                slotId3: 7,
+                suffix3Plain: "חבר שלי הלווה לי עט",
+                suffix3Pointed: "חָבֵר שֶׁלִּי הִלְוָה לִי עֵט",
+                hasFourthSlot: true,
+                slotId4: 8,
+                suffix4Plain: "יכולתי להמשיך ללמוד.",
+                suffix4Pointed: "יָכֹלְתִּי לְהַמְשִׁיךְ לִלְמֹד."
+            }
+        ];
+
+        // Global State Variables
+        let isNikkudEnabled = false;
+        let feedbackMode = 'end'; // 'end' or 'immediate'
+        let currentPlaybackSpeed = 1.0;
+        let userSlotSelections = {}; // slotId -> wordId
+        let shuffledBankWords = [];
+        let activeAudio = null;
+
+        // Memory Game State
+        let memoryCards = [];
+        let flippedMemoryCards = [];
+        let matchedMemoryCount = 0;
+        let memoryMovesCount = 0;
+        let isMemoryBoardLocked = false;
+
+        window.onload = function() {
+            shuffleBankWords();
+            renderDragGame();
+            renderFullTextTab();
+            renderGlossaryTab();
+            initMemoryGame();
+            renderWorksheetTab();
+        };
+
+        // Strictly Google TTS with full Hebrew Nikkud for natural female speech
+        function speakHebrew(pointedText, plainText) {
+            stopAudioPlayback();
+
+            const textToSpeak = (isNikkudEnabled || pointedText) ? pointedText : plainText;
+            if (!textToSpeak || textToSpeak.trim() === "") return;
+
+            const encodedText = encodeURIComponent(textToSpeak.trim());
+            const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodedText}`;
+
+            try {
+                activeAudio = new Audio(googleTtsUrl);
+                activeAudio.playbackRate = currentPlaybackSpeed;
+                
+                const playPromise = activeAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        showToast("שגיאה בהשמעת השמע. אנא בדוק את החיבור לאינטרנט.", "error");
+                    });
+                }
+            } catch (err) {
+                showToast("שגיאה בהפעלת מנוע השמע.", "error");
+            }
+        }
+
+        function stopAudioPlayback() {
+            if (activeAudio) {
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+            }
+        }
+
+        function setAudioSpeed(speed) {
+            currentPlaybackSpeed = speed;
+            if (activeAudio) {
+                activeAudio.playbackRate = speed;
+            }
+            document.querySelectorAll('[id^="speed-"]').forEach(el => el.classList.remove('bg-white/30', 'font-bold'));
+            const speedBtn = document.getElementById(`speed-${speed.toString().replace('.', '')}`);
+            if (speedBtn) speedBtn.classList.add('bg-white/30', 'font-bold');
+            showToast(`מהירות הקראה עודכנה ל-${speed}x`, "info");
+        }
+
+        function toggleGlobalNikkud() {
+            isNikkudEnabled = !isNikkudEnabled;
+            const btnText = document.getElementById('nikkud-btn-text');
+            if (btnText) {
+                btnText.innerText = isNikkudEnabled ? "הסתר ניקוד" : "הצג ניקוד";
+            }
+            // Re-render all views to reflect Nikkud toggle globally across all tabs
+            renderDragGame();
+            renderFullTextTab();
+            renderGlossaryTab();
+            renderWorksheetTab();
+            initMemoryGame();
+
+            showToast(isNikkudEnabled ? "ניקוד הופעל בכל העמודים" : "ניקוד הוסר", "info");
+        }
+
+        function toggleFeedbackMode() {
+            feedbackMode = (feedbackMode === 'end') ? 'immediate' : 'end';
+            const btn = document.getElementById('feedback-mode-btn');
+            const btnText = document.getElementById('feedback-mode-text');
+            const btnIcon = document.getElementById('feedback-mode-icon');
+            
+            if (btnText && btnIcon && btn) {
+                if (feedbackMode === 'immediate') {
+                    btnText.innerText = "בדיקה מיידית (פעיל)";
+                    btnIcon.className = "fa-solid fa-bolt text-amber-300";
+                    btn.className = "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition flex items-center gap-2 border border-amber-400";
+                } else {
+                    btnText.innerText = "בדיקה בסוף המשחק";
+                    btnIcon.className = "fa-solid fa-clock";
+                    btn.className = "px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs md:text-sm font-bold shadow-sm transition flex items-center gap-2 border border-indigo-500";
+                }
+            }
+            
+            renderDragGame();
+            showToast(feedbackMode === 'immediate' ? "מצב בדיקה מיידית הופעל - תתקבל תשובה נכון/לא נכון מייד עם השיבוץ!" : "מצב בדיקה בסוף המשחק הופעל - השיבוץ חופשי והבדיקה תתבצע בסוף", "info");
+        }
+
+        function switchTab(tabName) {
+            stopAudioPlayback();
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-indigo-700', 'shadow');
+                btn.classList.add('text-white/80');
+            });
+
+            const activeContent = document.getElementById(`tab-${tabName}`);
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            if (activeContent) activeContent.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.add('bg-white', 'text-indigo-700', 'shadow');
+                activeBtn.classList.remove('text-white/80');
+            }
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            const bgClass = (type === "success") ? "bg-emerald-600" : (type === "error") ? "bg-rose-600" : "bg-indigo-700";
+            toast.className = `${bgClass} text-white px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold flex items-center gap-2 pointer-events-auto transition-all transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // TAB 1: Drag & Drop Logic
+        function shuffleBankWords() {
+            shuffledBankWords = [...LINKING_WORDS_DATA].sort(() => Math.random() - 0.5);
+        }
+
+        function renderDragGame() {
+            const container = document.getElementById('drag-sentences-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const paragraph = document.createElement('p');
+            paragraph.className = "leading-loose tracking-wide font-normal text-slate-800";
+
+            SENTENCES_DATA.forEach((sentence) => {
+                // Inline Audio speaker button before each sentence
+                const audioBtn = document.createElement('button');
+                audioBtn.className = "sentence-audio-btn shadow-xs";
+                audioBtn.title = "הקרא משפט זה עד סימן הפיסוק";
+                audioBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    readSingleSentenceClause(sentence.id);
+                };
+                audioBtn.innerHTML = `<i class="fa-solid fa-volume-high text-xs"></i>`;
+                paragraph.appendChild(audioBtn);
+
+                // Sentence Prefix
+                if (sentence.prefixPlain) {
+                    const span = document.createElement('span');
+                    span.innerText = (isNikkudEnabled ? sentence.prefixPointed : sentence.prefixPlain) + " ";
+                    paragraph.appendChild(span);
+                }
+
+                // Slot 1
+                paragraph.appendChild(createSlotElement(sentence.slotId));
+
+                // Suffix 1
+                if (sentence.suffixPlain) {
+                    const span = document.createElement('span');
+                    span.innerText = " " + (isNikkudEnabled ? sentence.suffixPointed : sentence.suffixPlain) + " ";
+                    paragraph.appendChild(span);
+                }
+
+                // Optional Slot 2
+                if (sentence.hasSecondSlot) {
+                    paragraph.appendChild(createSlotElement(sentence.slotId2));
+                    if (sentence.suffix2Plain) {
+                        const span = document.createElement('span');
+                        span.innerText = " " + (isNikkudEnabled ? sentence.suffix2Pointed : sentence.suffix2Plain) + " ";
+                        paragraph.appendChild(span);
+                    }
+                }
+
+                // Optional Slot 3
+                if (sentence.hasThirdSlot) {
+                    paragraph.appendChild(createSlotElement(sentence.slotId3));
+                    if (sentence.suffix3Plain) {
+                        const span = document.createElement('span');
+                        span.innerText = " " + (isNikkudEnabled ? sentence.suffix3Pointed : sentence.suffix3Plain) + " ";
+                        paragraph.appendChild(span);
+                    }
+                }
+
+                // Optional Slot 4
+                if (sentence.hasFourthSlot) {
+                    paragraph.appendChild(createSlotElement(sentence.slotId4));
+                    if (sentence.suffix4Plain) {
+                        const span = document.createElement('span');
+                        span.innerText = " " + (isNikkudEnabled ? sentence.suffix4Pointed : sentence.suffix4Plain) + " ";
+                        paragraph.appendChild(span);
+                    }
+                }
+            });
+
+            container.appendChild(paragraph);
+            renderWordBank();
+        }
+
+        // Read an individual sentence up to its closing punctuation mark
+        function readSingleSentenceClause(sentenceId) {
+            const sentenceObj = SENTENCES_DATA.find(s => s.id === sentenceId);
+            if (!sentenceObj) return;
+
+            const getSlotText = (sId, isP) => {
+                if (userSlotSelections[sId] !== undefined) {
+                    const w = LINKING_WORDS_DATA.find(item => item.id === userSlotSelections[sId]);
+                    return w ? (isP ? w.pointed : w.plain) : "";
+                }
+                return ""; // Skip omitted linking word seamlessly
+            };
+
+            let clausePlain = sentenceObj.prefixPlain + " " + getSlotText(sentenceObj.slotId, false) + " " + sentenceObj.suffixPlain;
+            let clausePointed = sentenceObj.prefixPointed + " " + getSlotText(sentenceObj.slotId, true) + " " + sentenceObj.suffixPointed;
+
+            if (sentenceObj.hasSecondSlot) {
+                clausePlain += " " + getSlotText(sentenceObj.slotId2, false) + " " + sentenceObj.suffix2Plain;
+                clausePointed += " " + getSlotText(sentenceObj.slotId2, true) + " " + sentenceObj.suffix2Pointed;
+            }
+            if (sentenceObj.hasThirdSlot) {
+                clausePlain += " " + getSlotText(sentenceObj.slotId3, false) + " " + sentenceObj.suffix3Plain;
+                clausePointed += " " + getSlotText(sentenceObj.slotId3, true) + " " + sentenceObj.suffix3Pointed;
+            }
+            if (sentenceObj.hasFourthSlot) {
+                clausePlain += " " + getSlotText(sentenceObj.slotId4, false) + " " + sentenceObj.suffix4Plain;
+                clausePointed += " " + getSlotText(sentenceObj.slotId4, true) + " " + sentenceObj.suffix4Pointed;
+            }
+
+            speakHebrew(clausePointed, clausePlain);
+        }
+
+        // Read the full paragraph seamlessly
+        function readDragParagraph() {
+            let fullText = "";
+            let fullTextPointed = "";
+
+            SENTENCES_DATA.forEach(sentenceObj => {
+                const getSlotText = (sId, isP) => {
+                    if (userSlotSelections[sId] !== undefined) {
+                        const w = LINKING_WORDS_DATA.find(item => item.id === userSlotSelections[sId]);
+                        return w ? (isP ? w.pointed : w.plain) : "";
+                    }
+                    return "";
+                };
+
+                fullText += sentenceObj.prefixPlain + " " + getSlotText(sentenceObj.slotId, false) + " " + sentenceObj.suffixPlain + " ";
+                fullTextPointed += sentenceObj.prefixPointed + " " + getSlotText(sentenceObj.slotId, true) + " " + sentenceObj.suffixPointed + " ";
+
+                if (sentenceObj.hasSecondSlot) {
+                    fullText += getSlotText(sentenceObj.slotId2, false) + " " + sentenceObj.suffix2Plain + " ";
+                    fullTextPointed += getSlotText(sentenceObj.slotId2, true) + " " + sentenceObj.suffix2Pointed + " ";
+                }
+                if (sentenceObj.hasThirdSlot) {
+                    fullText += getSlotText(sentenceObj.slotId3, false) + " " + sentenceObj.suffix3Plain + " ";
+                    fullTextPointed += getSlotText(sentenceObj.slotId3, true) + " " + sentenceObj.suffix3Pointed + " ";
+                }
+                if (sentenceObj.hasFourthSlot) {
+                    fullText += getSlotText(sentenceObj.slotId4, false) + " " + sentenceObj.suffix4Plain + " ";
+                    fullTextPointed += getSlotText(sentenceObj.slotId4, true) + " " + sentenceObj.suffix4Pointed + " ";
+                }
+            });
+
+            speakHebrew(fullTextPointed, fullText);
+        }
+
+        function createSlotElement(slotId) {
+            const slot = document.createElement('div');
+            slot.className = `droppable-slot rounded-xl p-2 inline-flex items-center justify-center font-bold text-base transition shadow-inner ${userSlotSelections[slotId] !== undefined ? 'filled' : ''}`;
+            slot.dataset.slotId = slotId;
+
+            // Drag and Drop Listeners
+            slot.ondragover = (e) => {
+                e.preventDefault();
+                slot.classList.add('drag-over');
+            };
+            slot.ondragleave = () => slot.classList.remove('drag-over');
+            slot.ondrop = (e) => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                const wordId = e.dataTransfer.getData('text/plain');
+                if (wordId !== "") {
+                    handlePlaceWordInSlot(parseInt(slotId), parseInt(wordId));
+                }
+            };
+
+            // If a word is placed in this slot
+            if (userSlotSelections[slotId] !== undefined) {
+                const wordObj = LINKING_WORDS_DATA.find(w => w.id === userSlotSelections[slotId]);
+                if (wordObj) {
+                    const text = isNikkudEnabled ? wordObj.pointed : wordObj.plain;
+                    
+                    if (feedbackMode === 'immediate') {
+                        slot.classList.add(userSlotSelections[slotId] === slotId ? 'correct' : 'incorrect');
+                    }
+
+                    slot.innerHTML = `
+                        <span class="text-indigo-900 font-extrabold px-1.5 flex items-center gap-1">
+                            ${feedbackMode === 'immediate' && userSlotSelections[slotId] === slotId ? '<i class="fa-solid fa-check text-emerald-600 text-xs"></i>' : ''}
+                            ${text}
+                        </span>
+                        <button onclick="handleRemoveWordFromSlot(${slotId})" class="text-slate-400 hover:text-rose-500 mr-1 text-xs" title="הסר מילה">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    `;
+                }
+            } else {
+                slot.innerHTML = `<span class="text-slate-400 text-xs font-normal">גרור לכאן</span>`;
+            }
+
+            return slot;
+        }
+
+        function renderWordBank() {
+            const bankContainer = document.getElementById('word-bank-container');
+            if (!bankContainer) return;
+            bankContainer.innerHTML = '';
+
+            const usedWordIds = Object.values(userSlotSelections);
+
+            shuffledBankWords.forEach(word => {
+                if (usedWordIds.includes(word.id)) return; // Already placed
+
+                const card = document.createElement('div');
+                card.draggable = true;
+                card.className = "word-card bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl text-base shadow flex items-center gap-2 border border-indigo-400";
+                
+                const textSpan = document.createElement('span');
+                textSpan.innerText = isNikkudEnabled ? word.pointed : word.plain;
+
+                const speakWordBtn = document.createElement('button');
+                speakWordBtn.className = "hover:text-amber-300 text-xs transition";
+                speakWordBtn.title = "השמע מילה";
+                speakWordBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    speakHebrew(word.pointed, word.plain);
+                };
+                speakWordBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i>`;
+
+                card.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', word.id);
+                };
+
+                // Allow clicking to automatically place into first available slot
+                card.onclick = () => {
+                    const emptySlotId = findFirstEmptySlot();
+                    if (emptySlotId !== null) {
+                        handlePlaceWordInSlot(emptySlotId, word.id);
+                    } else {
+                        showToast("כל המשבצות כבר מלאות!", "info");
+                    }
+                };
+
+                card.appendChild(textSpan);
+                card.appendChild(speakWordBtn);
+                bankContainer.appendChild(card);
+            });
+
+            if (bankContainer.children.length === 0) {
+                bankContainer.innerHTML = `<span class="text-indigo-300 text-sm italic">כל המילים משובצות בטקסט!</span>`;
+            }
+        }
+
+        function findFirstEmptySlot() {
+            for (let i = 0; i < 9; i++) {
+                if (userSlotSelections[i] === undefined) return i;
+            }
+            return null;
+        }
+
+        function handlePlaceWordInSlot(slotId, wordId) {
+            if (feedbackMode === 'immediate') {
+                if (slotId === wordId) {
+                    userSlotSelections[slotId] = wordId;
+                    showToast("נכון מאוד! כל הכבוד!", "success");
+                    speakHebrew("נָכוֹן מְאֹד", "נכון מאוד");
+                } else {
+                    showToast("מילת קישור זו אינה מתאימה כאן. נסו שוב!", "error");
+                    return;
+                }
+            } else {
+                userSlotSelections[slotId] = wordId;
+            }
+
+            renderDragGame();
+            checkAutoCompletion();
+        }
+
+        function handleRemoveWordFromSlot(slotId) {
+            delete userSlotSelections[slotId];
+            renderDragGame();
+        }
+
+        function resetDragGame() {
+            userSlotSelections = {};
+            shuffleBankWords();
+            renderDragGame();
+            showToast("המשחק אופס בהצלחה", "info");
+        }
+
+        function checkDragGame() {
+            let correctCount = 0;
+            const slots = document.querySelectorAll('.droppable-slot');
+
+            slots.forEach(slot => {
+                const sId = parseInt(slot.dataset.slotId);
+                if (userSlotSelections[sId] !== undefined) {
+                    if (userSlotSelections[sId] === sId) {
+                        slot.classList.add('correct');
+                        slot.classList.remove('incorrect');
+                        correctCount++;
+                    } else {
+                        slot.classList.add('incorrect');
+                        slot.classList.remove('correct');
+                    }
+                }
+            });
+
+            if (correctCount === 9) {
+                triggerVictoryConfetti();
+            } else {
+                showToast(`שיבצת נכון ${correctCount} מתוך 9 מילות קישור.`, "info");
+            }
+        }
+
+        function checkAutoCompletion() {
+            if (Object.keys(userSlotSelections).length === 9) {
+                let allCorrect = true;
+                for (let i = 0; i < 9; i++) {
+                    if (userSlotSelections[i] !== i) {
+                        allCorrect = false;
+                        break;
+                    }
+                }
+                if (allCorrect) {
+                    triggerVictoryConfetti();
+                }
+            }
+        }
+
+        function triggerVictoryConfetti() {
+            confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.6 }
+            });
+
+            speakHebrew("כָּל הַכָּבוֹד! הִשְׁלַמְתָּ אֶת כָּל מִלּוֹת הַקִּישׁוּר בְּהַצְלָחָה!", "כל הכבוד! השלמת את כל מילות הקישור בהצלחה!");
+            showToast("כל הכבוד! השלמת את הטקסט בהצלחה!", "success");
+        }
+
+        // TAB 2: Text Reader Logic
+        function renderFullTextTab() {
+            const container = document.getElementById('full-text-display');
+            if (!container) return;
+
+            const fullTextPlain = "הבוקר קמתי מוקדם מאוד מפני שרציתי להגיע לבית הספר בזמן. אבל, האוטובוס איחר בחצי שעה, ולכן הגעתי באיחור לשיעור הראשון. המורה כעסה עליי, אך לאחר שהסברתי לה מה קרה, היא הבינה אותי. אז נכנסתי לכיתה וישבתי במקום. בנוסף, שכחתי את הציוד בבית, כך שלא יכולתי לכתוב, אולם חבר שלי הלווה לי עט וכך יכולתי להמשיך ללמוד.";
+
+            const fullTextPointed = "הַבֹּקֶר קַמְתִּי מוּקְדָם מְאֹד מִפְּנֵי שֶׁרָצִיתִי לְהַגִּיעַ לְבֵית הַסֵּפֶר בַּזְּמַן. אֲבָל, הָאוֹטוֹבּוּס אֵחַר בַּחֲצִי שָׁעָה, וְלָכֵן הִגַּעְתִּי בְּאִיחוּר לַשִּׁעוּר הָרִאשׁוֹן. הַמּוֹרָה כָּעֲסָה עָלַי, אַךְ לְאַחַר שֶׁהִסְבַּרְתִּי לָהּ מַה קָּרָה, הִיא הֵבִינָה אוֹתִי. אָז נִכְנַסְתִּי לַכִּתָּה וְיָשַׁבְתִּי בַּמָּקוֹם. בְּנוֹסָף, שָׁכַחְתִּי אֶת הַצִּיּוּד בַּבַּיִת, כָּךְ שֶׁלֹּא יָכֹלְתִּי לִכְתֹּב, אוּלָם חָבֵר שֶׁלִּי הִלְוָה לִי עֵט וְכָךְ יָכֹלְתִּי לְהַמְשִׁיךְ לִלְמֹד.";
+
+            container.innerText = isNikkudEnabled ? fullTextPointed : fullTextPlain;
+        }
+
+        function readFullTextParagraph() {
+            const fullTextPlain = "הבוקר קמתי מוקדם מאוד מפני שרציתי להגיע לבית הספר בזמן. אבל, האוטובוס איחר בחצי שעה, ולכן הגעתי באיחור לשיעור הראשון. המורה כעסה עליי, אך לאחר שהסברתי לה מה קרה, היא הבינה אותי. אז נכנסתי לכיתה וישבתי במקום. בנוסף, שכחתי את הציוד בבית, כך שלא יכולתי לכתוב, אולם חבר שלי הלווה לי עט וכך יכולתי להמשיך ללמוד.";
+
+            const fullTextPointed = "הַבֹּקֶר קַמְתִּי מוּקְדָם מְאֹד מִפְּנֵי שֶׁרָצִיתִי לְהַגִּיעַ לְבֵית הַסֵּפֶר בַּזְּמַן. אֲבָל, הָאוֹטוֹבּוּס אֵחַר בַּחֲצִי שָׁעָה, וְלָכֵן הִגַּעְתִּי בְּאִיחוּר לַשִּׁעוּר הָרִאשׁוֹן. הַמּוֹרָה כָּעֲסָה עָלַי, אַךְ לְאַחַר שֶׁהִסְבַּרְתִּי לָהּ מַה קָּרָה, הִיא הֵבִינָה אוֹתִי. אָז נִכְנַסְתִּי לַכִּתָּה וְיָשַׁבְתִּי בַּמָּקוֹם. בְּנוֹסָף, שָׁכַחְתִּי אֶת הַצִּיּוּד בַּבַּיִת, כָּךְ שֶׁלֹּא יָכֹלְתִּי לִכְתֹּב, אוּלָם חָבֵר שֶׁלִּי הִלְוָה לִי עֵט וְכָךְ יָכֹלְתִּי לְהַמְשִׁיךְ לִלְמֹד.";
+
+            speakHebrew(fullTextPointed, fullTextPlain);
+        }
+
+        // TAB 3: Glossary Logic
+        function renderGlossaryTab() {
+            const container = document.getElementById('glossary-cards-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            LINKING_WORDS_DATA.forEach(word => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition space-y-3";
+
+                const wordTitle = isNikkudEnabled ? word.pointed : word.plain;
+                const typeText = isNikkudEnabled ? word.typePointed : word.type;
+                const meaningText = isNikkudEnabled ? word.meaningPointed : word.meaning;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center border-b pb-2 border-slate-100">
+                        <span class="text-xl font-black text-indigo-700">${wordTitle}</span>
+                        <button onclick="speakHebrew('${word.pointed}', '${word.plain}')" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition" title="השמע מילה">
+                            <i class="fa-solid fa-volume-high text-lg"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">יחס: ${typeText}</span>
+                    </div>
+                    <p class="text-sm text-slate-600 leading-relaxed">${meaningText}</p>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs text-slate-500 italic">
+                        "${word.example}"
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // TAB 4: Memory Game Logic
+        function initMemoryGame() {
+            memoryMovesCount = 0;
+            matchedMemoryCount = 0;
+            flippedMemoryCards = [];
+            isMemoryBoardLocked = false;
+
+            const movesEl = document.getElementById('memory-moves');
+            const matchesEl = document.getElementById('memory-matches');
+            if (movesEl) movesEl.innerText = '0';
+            if (matchesEl) matchesEl.innerText = '0 / 9';
+
+            let cardsData = [];
+            LINKING_WORDS_DATA.forEach(word => {
+                cardsData.push({
+                    id: word.id,
+                    type: 'word',
+                    text: isNikkudEnabled ? word.pointed : word.plain,
+                    pointed: word.pointed,
+                    plain: word.plain
+                });
+                cardsData.push({
+                    id: word.id,
+                    type: 'type',
+                    text: isNikkudEnabled ? word.typePointed : word.type,
+                    pointed: word.typePointed,
+                    plain: word.type
+                });
+            });
+
+            memoryCards = cardsData.sort(() => Math.random() - 0.5);
+
+            const grid = document.getElementById('memory-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            memoryCards.forEach((card, idx) => {
+                const cardEl = document.createElement('div');
+                cardEl.className = "memory-card cursor-pointer";
+                cardEl.dataset.index = idx;
+
+                cardEl.innerHTML = `
+                    <div class="memory-card-inner">
+                        <div class="memory-card-front">
+                            <i class="fa-solid fa-question text-2xl text-amber-300"></i>
+                        </div>
+                        <div class="memory-card-back flex-col gap-1">
+                            <span class="text-xs text-indigo-500 font-bold">${card.type === 'word' ? 'מילת קישור' : 'יחס לוגי'}</span>
+                            <span class="font-black text-sm md:text-base">${card.text}</span>
+                        </div>
+                    </div>
+                `;
+
+                cardEl.onclick = () => handleMemoryCardClick(cardEl, card);
+                grid.appendChild(cardEl);
+            });
+        }
+
+        function handleMemoryCardClick(cardEl, cardObj) {
+            if (isMemoryBoardLocked || cardEl.classList.contains('flipped') || cardEl.classList.contains('matched')) return;
+
+            cardEl.classList.add('flipped');
+            speakHebrew(cardObj.pointed, cardObj.plain);
+            flippedMemoryCards.push({ cardEl, cardObj });
+
+            if (flippedMemoryCards.length === 2) {
+                memoryMovesCount++;
+                document.getElementById('memory-moves').innerText = memoryMovesCount;
+                checkMemoryMatch();
+            }
+        }
+
+        function checkMemoryMatch() {
+            isMemoryBoardLocked = true;
+            const [first, second] = flippedMemoryCards;
+
+            if (first.cardObj.id === second.cardObj.id && first.cardObj.type !== second.cardObj.type) {
+                first.cardEl.classList.add('matched');
+                second.cardEl.classList.add('matched');
+                matchedMemoryCount++;
+                document.getElementById('memory-matches').innerText = `${matchedMemoryCount} / 9`;
+
+                flippedMemoryCards = [];
+                isMemoryBoardLocked = false;
+
+                if (matchedMemoryCount === 9) {
+                    setTimeout(() => {
+                        confetti({ particleCount: 100, spread: 70 });
+                        showToast("ניצחת במועד הזיכרון! כל הכבוד!", "success");
+                    }, 500);
+                }
+            } else {
+                setTimeout(() => {
+                    first.cardEl.classList.remove('flipped');
+                    second.cardEl.classList.remove('flipped');
+                    flippedMemoryCards = [];
+                    isMemoryBoardLocked = false;
+                }, 1200);
+            }
+        }
+
+        // TAB 5: Interactive Worksheet Logic
+        const WORKSHEET_QUESTIONS = [
+            {
+                id: 1,
+                question: "מה תפקידה של מילת הקישור 'מפני ש' במשפט הראשון?",
+                questionPointed: "מַה תַּפְקִידָהּ שֶׁל מִילַת הַקִּישׁוּר 'מִפְּנֵי שֶׁ' בַּמִּשְׁפָּט הָרִאשׁוֹן?",
+                options: ["הוספה", "סיבה", "תוצאה", "ניגוד"],
+                optionsPointed: ["הוֹסָפָה", "סִבָּה", "תּוֹצָאָה", "נִגּוּד"],
+                correct: 1
+            },
+            {
+                id: 2,
+                question: "אילו מילות קישור בטקסט מבטאות ניגוד או סתירה?",
+                questionPointed: "אֵילוּ מִלּוֹת קִישׁוּר בַּטֶּקְסְט מְבַטְּאוֹת נִגּוּד אוֹ סְתִירָה?",
+                options: ["בנוסף, וכך", "אבל, אך, אולם", "ולכן, אז", "מפני ש, כך ש"],
+                optionsPointed: ["בְּנוֹסָף, וְכָךְ", "אֲבָל, אַךְ, אוּלָם", "וְלָכֵן, אָז", "מִפְּנֵי שֶׁ, כָּךְ שֶׁ"],
+                correct: 1
+            },
+            {
+                id: 3,
+                question: "השלימו את המשפט: האוטובוס איחר, _____ הגעתי באיחור.",
+                questionPointed: "הַשְׁלִימוּ אֶת הַמִּשְׁפָּט: הָאוֹטוֹבּוּס אֵחַר, _____ הִגַּעְתִּי בְּאִיחוּר.",
+                options: ["אולם", "בנוסף", "ולכן", "אבל"],
+                optionsPointed: ["אוּלָם", "בְּנוֹסָף", "וְלָכֵן", "אֲבָל"],
+                correct: 2
+            }
+        ];
+
+        function renderWorksheetTab() {
+            const container = document.getElementById('worksheet-questions-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            WORKSHEET_QUESTIONS.forEach((q, qIndex) => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4";
+
+                const qText = isNikkudEnabled ? q.questionPointed : q.question;
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <span class="bg-indigo-600 text-white w-7 h-7 rounded-full inline-flex items-center justify-center text-sm">${qIndex + 1}</span>
+                            <span>${qText}</span>
+                        </h3>
+                        <button onclick="speakHebrew('${q.questionPointed}', '${q.question}')" class="p-2 text-indigo-600 hover:bg-indigo-100 rounded-xl transition" title="השמע שאלה">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2 pr-9" id="q-options-${q.id}">
+                        ${q.options.map((opt, optIndex) => {
+                            const optText = isNikkudEnabled ? q.optionsPointed[optIndex] : opt;
+                            return `
+                                <label class="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-indigo-300 transition">
+                                    <input type="radio" name="worksheet-q-${q.id}" value="${optIndex}" class="w-4 h-4 text-indigo-600 accent-indigo-600">
+                                    <span class="text-base font-medium">${optText}</span>
+                                </label>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function checkWorksheetAnswers() {
+            let score = 0;
+            WORKSHEET_QUESTIONS.forEach(q => {
+                const selected = document.querySelector(`input[name="worksheet-q-${q.id}"]:checked`);
+                if (selected && parseInt(selected.value) === q.correct) {
+                    score++;
+                }
+            });
+
+            if (score === WORKSHEET_QUESTIONS.length) {
+                confetti({ particleCount: 100, spread: 70 });
+                speakHebrew("כָּל הַכָּבוֹד! עָנִיתָ נָכוֹן עַל כָּל הַשְּׁאֵלוֹת בְּדַף הָעֲבוֹדָה!", "כל הכבוד! ענית נכון על כל השאלות בדף העבודה!");
+                showToast(`ציון מושלם! ${score} מתוך ${WORKSHEET_QUESTIONS.length}`, "success");
+            } else {
+                showToast(`ענית נכון על ${score} מתוך ${WORKSHEET_QUESTIONS.length} שאלות.`, "info");
+            }
+        }
+    </script>
+</body>
+</html>

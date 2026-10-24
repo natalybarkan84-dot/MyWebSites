@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>שיתוף חוויות סוף שבוע בכיתה 🌟</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font - Rubik -->
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Rubik', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Rubik', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        /* 3D Flip Card Effect */
+        .card-perspective {
+            perspective: 1000px;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.7s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .card-perspective.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1.25rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Pulse glow for wheel turn button */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(234, 179, 8, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(234, 179, 8, 0.9); }
+        }
+
+        .pulse-button {
+            animation: pulse-glow 2s infinite;
+        }
+
+        /* Canvas container positioning */
+        #wheelCanvas {
+            max-width: 100%;
+            height: auto;
+            filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.15));
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-amber-300 selection:text-slate-900 pb-12">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+            
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-rose-500 flex items-center justify-center text-white text-xl shadow-md transform hover:rotate-6 transition-transform">
+                    <i class="fa-solid fa-sun"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black bg-gradient-to-r from-purple-600 via-pink-600 to-amber-600 bg-clip-text text-transparent">
+                        חוויות סוף השבוע 🌟
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-500 font-medium">שיתוף חוויות יום ראשון בכיתה</p>
+                </div>
+            </div>
+
+            <!-- View Switcher Tabs -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner">
+                <button id="tabCards" onclick="switchView('cards')" class="px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 bg-white text-indigo-600 shadow-sm">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>כרטיסיות שאלות</span>
+                </button>
+                <button id="tabWheel" onclick="switchView('wheel')" class="px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-dharmachakra text-amber-500"></i>
+                    <span>גלגל המזל</span>
+                </button>
+            </div>
+
+            <!-- Utility Controls -->
+            <div class="flex items-center gap-2">
+                <button id="soundToggleBtn" onclick="toggleSound()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors" title="הפעל/השתק צלילים">
+                    <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <button onclick="resetAnsweredStatus()" class="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors border border-rose-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span class="hidden sm:inline">איפוס סימון שאלות</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+
+        <!-- VIEW 1: Cards Grid -->
+        <section id="cardsViewSection" class="transition-all duration-300">
+            <!-- Instruction banner -->
+            <div class="mb-6 p-4 rounded-2xl bg-white/70 border border-slate-200/80 shadow-sm flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-sm">💡</span>
+                    <p class="text-sm text-slate-700 font-medium">
+                        לחצו על כרטיסייה כדי להפוך אותה ולראות רמזים והנחיות לשיתוף בכיתה.
+                    </p>
+                </div>
+                <div class="text-xs font-semibold text-slate-500">
+                    נשאלו: <span id="answeredCount" class="text-indigo-600 font-bold">0</span> / <span id="totalCount">11</span>
+                </div>
+            </div>
+
+            <!-- Cards Container Grid -->
+            <div id="cardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Cards dynamically generated via JavaScript -->
+            </div>
+        </section>
+
+        <!-- VIEW 2: Wheel of Fortune View -->
+        <section id="wheelViewSection" class="hidden transition-all duration-300">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                
+                <!-- Wheel Column (2 Columns wide on lg) -->
+                <div class="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-100 flex flex-col items-center justify-center relative overflow-hidden">
+                    
+                    <!-- Top Info Badge -->
+                    <div class="mb-4 text-center">
+                        <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            לחצו על הכפתור "סובב את הגלגל" לבחירת שאלה אקראית
+                        </span>
+                    </div>
+
+                    <!-- Wheel Canvas Container -->
+                    <div class="relative my-4 flex items-center justify-center w-full max-w-[480px]">
+                        <!-- Wheel Pointer Indicator -->
+                        <div class="absolute -top-4 z-20 w-8 h-10 flex items-center justify-center filter drop-shadow-md">
+                            <div class="w-0 h-0 border-l-[16px] border-l-transparent border-r-[16px] border-r-transparent border-t-[28px] border-t-rose-600"></div>
+                        </div>
+
+                        <!-- Canvas Wheel -->
+                        <canvas id="wheelCanvas" width="500" height="500" class="w-full h-auto cursor-pointer"></canvas>
+                    </div>
+
+                    <!-- Spin Controls -->
+                    <div class="mt-6 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                        <button id="spinBtn" onclick="spinWheel()" class="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 hover:from-amber-500 hover:to-rose-600 text-white font-extrabold text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 active:translate-y-0 pulse-button flex items-center justify-center gap-3">
+                            <i class="fa-solid fa-arrows-spin text-2xl"></i>
+                            <span>סובב את הגלגל!</span>
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- Settings / Active Questions Sidebar -->
+                <div class="space-y-6">
+                    
+                    <!-- Random Student Picker Option -->
+                    <div class="bg-white rounded-3xl p-6 shadow-md border border-slate-100">
+                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-user-graduate text-indigo-500"></i>
+                            <span>מי עונה עכשיו? (הגרלת תלמיד/ה)</span>
+                        </h2>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label for="studentsListInput" class="block text-xs font-semibold text-slate-600">
+                                        רשימת תלמידי הכיתה (הפרידו בפסיקים או בשורות חדשות):
+                                    </label>
+                                    <span id="studentCountBadge" class="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                        --
+                                    </span>
+                                </div>
+                                <textarea id="studentsListInput" rows="3" oninput="saveStudentList()" placeholder="הזינו שמות תלמידים: איתי, נועה, דניאל..." class="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-xs font-medium custom-scrollbar resize-none"></textarea>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="pickRandomStudent()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-dice text-sm"></i>
+                                    <span>הגרל שם מרשימת הכיתה</span>
+                                </button>
+                                <button onclick="resetPickedStudents()" title="איפוס סבב השמות" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors border border-slate-200 flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                    <span class="hidden sm:inline">איפוס סבב</span>
+                                </button>
+                            </div>
+                            <div id="selectedStudentBadge" class="hidden p-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-center text-sm shadow-md animate-bounce flex flex-col items-center justify-center gap-1">
+                                <div class="flex items-center gap-2">
+                                    <span>🎯 התור של:</span>
+                                    <span id="currentStudentName" class="text-amber-300 font-black text-base">--</span>
+                                </div>
+                                <span id="pickedStudentProgress" class="text-[11px] font-normal text-indigo-100"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wheel Settings -->
+                    <div class="bg-white rounded-3xl p-6 shadow-md border border-slate-100">
+                        <h2 class="text-base font-bold text-slate-800 flex items-center justify-between mb-4">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-amber-500"></i>
+                                <span>הגדרות הגלגל</span>
+                            </span>
+                        </h2>
+
+                        <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/60 cursor-pointer hover:bg-slate-100 transition-colors">
+                            <input type="checkbox" id="skipAnsweredCheckbox" onchange="updateWheel()" checked class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                            <span class="text-xs font-semibold text-slate-700">דלג בגלגל על שאלות שכבר נענו</span>
+                        </label>
+
+                        <div class="mt-4 pt-4 border-t border-slate-100">
+                            <p class="text-xs text-slate-500 mb-2 font-medium">רשימת השאלות הפעילות בגלגל:</p>
+                            <div id="activeQuestionsList" class="max-h-48 overflow-y-auto custom-scrollbar space-y-1.5 text-xs">
+                                <!-- Dynamic List -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- RESULT MODAL OVERLAY -->
+    <div id="resultModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 transform transition-all scale-90 relative overflow-hidden" id="modalContent">
+            
+            <!-- Decor background pattern -->
+            <div class="absolute -top-12 -right-12 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-rose-500/20 rounded-full blur-2xl"></div>
+
+            <div class="relative z-10 text-center space-y-4">
+                
+                <!-- Category Icon -->
+                <div id="modalIconContainer" class="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center text-3xl text-white shadow-lg transform -rotate-3">
+                    <i id="modalIcon" class="fa-solid fa-star"></i>
+                </div>
+
+                <!-- Question Number & Student Name -->
+                <div>
+                    <span id="modalCategoryBadge" class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-extrabold uppercase tracking-wide">
+                        שאלה #1
+                    </span>
+                    <h3 id="modalStudentTitle" class="text-lg font-black text-indigo-600 mt-2 hidden">
+                        <!-- Student name injected here -->
+                    </h3>
+                </div>
+
+                <!-- Question Text -->
+                <h2 id="modalQuestionText" class="text-xl sm:text-2xl font-bold text-slate-800 leading-relaxed px-2">
+                    טוען שאלה...
+                </h2>
+
+                <!-- Prompt/Hint Box -->
+                <div class="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-right text-xs sm:text-sm text-amber-900 space-y-1">
+                    <p class="font-bold flex items-center gap-1.5 text-amber-800">
+                        <i class="fa-regular fa-lightbulb"></i>
+                        <span>רמז לשיתוף:</span>
+                    </p>
+                    <p id="modalHintText" class="text-amber-800/90 font-medium leading-normal">
+                        <!-- Hint text -->
+                    </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-4 flex flex-col sm:flex-row gap-3">
+                    <button onclick="markCurrentModalAsAnswered()" class="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check"></i>
+                        <span>סמן כשאלה שנענתה</span>
+                    </button>
+                    <button onclick="closeModal()" class="py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-all">
+                        סגור
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const questionsData = [
+            {
+                id: 1,
+                title: "סרטונים ושירים",
+                icon: "fa-youtube",
+                gradient: "from-rose-500 to-pink-600",
+                badgeBg: "bg-rose-100 text-rose-700",
+                frontText: "איזה שיר, סרט, סדרה או סרטון ב-YouTube / TikTok שראיתם בסוף השבוע ממש אהבתם ולמה?",
+                hintText: "שתפו מה ראיתם, מה תפס את תשומת הלב שלכם, ולמה הייתם ממליצים על זה לחברים בכיתה.",
+                answered: false
+            },
+            {
+                id: 2,
+                title: "משחקים וגיימינג",
+                icon: "fa-gamepad",
+                gradient: "from-indigo-500 to-purple-600",
+                badgeBg: "bg-indigo-100 text-indigo-700",
+                frontText: "איזה משחק (במחשב, בטלפון, או משחק קופסה/קלפים) היה הכי כיף או מותח השבוע?",
+                hintText: "ספרו על המשחק, באיזה שלב הייתם, האם שיחקתם לבד או עם עוד אנשים, ומה הפך אותו לכיפי.",
+                answered: false
+            },
+            {
+                id: 3,
+                title: "אוכל וחטיפים",
+                icon: "fa-utensils",
+                gradient: "from-amber-400 to-orange-500",
+                badgeBg: "bg-amber-100 text-amber-700",
+                frontText: "מה היה המאכל או החטיף הכי טעים שאכלתם במהלך סוף השבוע?",
+                hintText: "שתפו מה אכלתם, מי הכין את זה (או איפה קניתם), ולמה זה היה המאכל הנבחר של הסופ\"ש.",
+                answered: false
+            },
+            {
+                id: 4,
+                title: "רגע של סטלבט",
+                icon: "fa-couch",
+                gradient: "from-teal-400 to-emerald-600",
+                badgeBg: "bg-teal-100 text-teal-700",
+                frontText: "מה היה רגע ה\"אפס מאמץ\" או ה\"סטלבט\" הכי מהנה שלכם בסופ\"ש?",
+                hintText: "תארו את הרגע שבו פשוט נחתם, נרגעתם ולא עשיתם כלום (לישון עד מאוחר, לשכב במיטה, לנוח בספה).",
+                answered: false
+            },
+            {
+                id: 5,
+                title: "בילוי עם אחרים",
+                icon: "fa-users",
+                gradient: "from-sky-400 to-blue-600",
+                badgeBg: "bg-sky-100 text-sky-700",
+                frontText: "עם מי ביליתם הכי הרבה זמן בסוף השבוע, ומה עשיתם יחד?",
+                hintText: "ספרו על הזמן שביליתם עם חברים, אחים, הורים, חיית מחמד או בבילוי איכותי עם עצמכם.",
+                answered: false
+            },
+            {
+                id: 6,
+                title: "רגע מצחיק",
+                icon: "fa-face-laugh-squint",
+                gradient: "from-yellow-400 to-amber-500",
+                badgeBg: "bg-yellow-100 text-yellow-800",
+                frontText: "האם קרה בסוף השבוע משהו מצחיק, מוזר או מפתיע שגרם לכם לצחוק?",
+                hintText: "שתפו אירוע קטן, בדיחה, פאדיחה חמודה או סיטואציה מצחיקה שקרה לכם או שראיתם.",
+                answered: false
+            },
+            {
+                id: 7,
+                title: "חוויה קטנה",
+                icon: "fa-seedling",
+                gradient: "from-emerald-400 to-green-600",
+                badgeBg: "bg-emerald-100 text-emerald-700",
+                frontText: "מה הייתה ה\"חוויה הקטנה\" שלכם בסופ\"ש שהייתה לכם כיפית במיוחד?",
+                hintText: "למדתם משהו חדש, עזרתם בבית, סידרתם את החדר, או שמעתם מוזיקה באוזניות שגרמה לכם להרגשה טובה.",
+                answered: false
+            },
+            {
+                id: 8,
+                title: "תמונת הסופ\"ש",
+                icon: "fa-camera-retro",
+                gradient: "from-fuchsia-500 to-purple-600",
+                badgeBg: "bg-fuchsia-100 text-fuchsia-700",
+                frontText: "אם הייתם צריכים לבחור תמונה אחת או רגע אחד שמתאר את הסופ\"ש – מה היה בתמונה?",
+                hintText: "תארו במילים את ה\"פריים\" של הסופ\"ש שלכם: איפה הייתם, מה עשיתם ואיך הייתה ההרגשה.",
+                answered: false
+            },
+            {
+                id: 9,
+                title: "במילה אחת",
+                icon: "fa-quote-right",
+                gradient: "from-red-400 to-rose-600",
+                badgeBg: "bg-red-100 text-red-700",
+                frontText: "איך הייתם מתארים את סוף השבוע שלכם במילה אחת בלבד? ולמה?",
+                hintText: "בחרו מילה אחת (רגוע, מעייף, מצחיק, כיפי, איטי וכו') והסבירו בקצרה את הבחירה.",
+                answered: false
+            },
+            {
+                id: 10,
+                title: "שיא הסופ\"ש",
+                icon: "fa-trophy",
+                gradient: "from-cyan-400 to-blue-500",
+                badgeBg: "bg-cyan-100 text-cyan-700",
+                frontText: "מה היה הדבר הכי טוב שקרה בסופ\"ש, שאתם מאחלים לעצמכם שיקרה גם בסופ\"ש הבא?",
+                hintText: "שתפו את נקודת השיא (ההיילייט) של הסופ\"ש ואת ההרגשה הטובה שהיא השאירה לכם.",
+                answered: false
+            },
+            {
+                id: 11,
+                title: "מטרה לשבוע",
+                icon: "fa-bullseye",
+                gradient: "from-amber-400 to-yellow-500",
+                badgeBg: "bg-amber-100 text-amber-800",
+                frontText: "איזו מטרה, יעד או דבר קטן הייתם רוצים להשיג או להצליח לעשות במהלך השבוע הקרוב?",
+                hintText: "שתפו כוונה או שאיפה קטנה לשבוע שמתחיל היום (בלימודים, בחברות, בתחביב או בהרגשה).",
+                answered: false
+            }
+        ];
+
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const soundIcon = document.getElementById('soundIcon');
+            if (soundEnabled) {
+                soundIcon.className = 'fa-solid fa-volume-high';
+            } else {
+                soundIcon.className = 'fa-solid fa-volume-xmark';
+            }
+        }
+
+        function playTickSound() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(450, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.03);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.03);
+            } catch(e) {}
+        }
+
+        function playWinFanfare() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25];
+                notes.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    const startTime = ctx.currentTime + idx * 0.08;
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.3);
+                });
+            } catch(e) {}
+        }
+
+        let defaultStudentNames = [
+            "איתי", "נועה", "דניאל", "מאיה", "עומר", "שירה", "יוסף", "תמר", 
+            "אריאל", "אגם", "גיא", "יובל", "רוני", "ליאם", "מאור", "הילי"
+        ];
+        let currentPickedStudent = "";
+        let pickedStudentNames = [];
+
+        function initStudentList() {
+            const saved = localStorage.getItem('classroom_students_list');
+            const textarea = document.getElementById('studentsListInput');
+            if (textarea) {
+                if (saved !== null) {
+                    textarea.value = saved;
+                } else {
+                    textarea.value = defaultStudentNames.join(', ');
+                }
+            }
+            updateStudentCountUI();
+        }
+
+        function saveStudentList() {
+            const textarea = document.getElementById('studentsListInput');
+            if (textarea) {
+                localStorage.setItem('classroom_students_list', textarea.value);
+            }
+            const currentList = getParsedStudentList();
+            pickedStudentNames = pickedStudentNames.filter(name => currentList.includes(name));
+            updateStudentCountUI();
+        }
+
+        function getParsedStudentList() {
+            const textarea = document.getElementById('studentsListInput');
+            if (!textarea) return [];
+            return textarea.value
+                .split(/[\n,]+/)
+                .map(name => name.trim())
+                .filter(name => name.length > 0);
+        }
+
+        function updateStudentCountUI() {
+            const allStudents = getParsedStudentList();
+            const countBadge = document.getElementById('studentCountBadge');
+            if (countBadge) {
+                const remaining = allStudents.length - pickedStudentNames.length;
+                countBadge.innerText = `נותרו ${remaining} מתוך ${allStudents.length}`;
+            }
+        }
+
+        function resetPickedStudents() {
+            pickedStudentNames = [];
+            currentPickedStudent = "";
+            const badge = document.getElementById('selectedStudentBadge');
+            if (badge) badge.classList.add('hidden');
+            updateStudentCountUI();
+        }
+
+        function pickRandomStudent() {
+            const allStudents = getParsedStudentList();
+            const badge = document.getElementById('selectedStudentBadge');
+            const nameSpan = document.getElementById('currentStudentName');
+            const progressSpan = document.getElementById('pickedStudentProgress');
+
+            if (allStudents.length === 0) {
+                currentPickedStudent = "";
+                nameSpan.innerText = "אנא הזינו שמות ברשימה";
+                if (progressSpan) progressSpan.innerText = "";
+                badge.classList.remove('hidden');
+                updateStudentCountUI();
+                return;
+            }
+
+            // Filter out students that were already picked in this round
+            const unpickedStudents = allStudents.filter(name => !pickedStudentNames.includes(name));
+
+            if (unpickedStudents.length === 0) {
+                // All students were picked in this round
+                currentPickedStudent = "";
+                nameSpan.innerText = "כל התלמידים כבר הוגרלו! 🎉";
+                if (progressSpan) progressSpan.innerText = "הסבב אופס אוטומטית להגרלה הבאה";
+                badge.classList.remove('hidden');
+                pickedStudentNames = [];
+                updateStudentCountUI();
+                return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * unpickedStudents.length);
+            currentPickedStudent = unpickedStudents[randomIndex];
+            pickedStudentNames.push(currentPickedStudent);
+
+            nameSpan.innerText = currentPickedStudent;
+            if (progressSpan) {
+                progressSpan.innerText = `הוגרלו בסבב: ${pickedStudentNames.length} מתוך ${allStudents.length}`;
+            }
+            badge.classList.remove('hidden');
+            updateStudentCountUI();
+        }
+
+        function switchView(view) {
+            const cardsSec = document.getElementById('cardsViewSection');
+            const wheelSec = document.getElementById('wheelViewSection');
+            const tabCards = document.getElementById('tabCards');
+            const tabWheel = document.getElementById('tabWheel');
+
+            if (view === 'cards') {
+                cardsSec.classList.remove('hidden');
+                wheelSec.classList.add('hidden');
+                tabCards.className = "px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 bg-white text-indigo-600 shadow-sm";
+                tabWheel.className = "px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900";
+            } else {
+                cardsSec.classList.add('hidden');
+                wheelSec.classList.remove('hidden');
+                tabWheel.className = "px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 bg-white text-amber-600 shadow-sm";
+                tabCards.className = "px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900";
+                setTimeout(() => {
+                    drawWheel();
+                }, 50);
+            }
+        }
+
+        function resetAnsweredStatus() {
+            questionsData.forEach(q => q.answered = false);
+            renderCards();
+            updateWheel();
+        }
+
+        function renderCards() {
+            const cardsGrid = document.getElementById('cardsGrid');
+            if (!cardsGrid) return;
+
+            const answeredCount = questionsData.filter(q => q.answered).length;
+            document.getElementById('answeredCount').innerText = answeredCount;
+            document.getElementById('totalCount').innerText = questionsData.length;
+
+            cardsGrid.innerHTML = '';
+
+            questionsData.forEach(q => {
+                const cardWrapper = document.createElement('div');
+                cardWrapper.className = `card-perspective h-80 cursor-pointer ${q.answered ? 'opacity-80' : ''}`;
+                cardWrapper.id = `card-${q.id}`;
+                
+                cardWrapper.innerHTML = `
+                    <div class="card-inner w-full h-full relative" onclick="toggleCardFlip(${q.id})">
+                        <!-- Front Side -->
+                        <div class="card-front bg-white rounded-2xl p-5 flex flex-col justify-between border-2 ${q.answered ? 'border-emerald-400 bg-emerald-50/30' : 'border-slate-100 hover:border-indigo-200'} shadow-md hover:shadow-lg transition-all">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="w-10 h-10 rounded-xl bg-gradient-to-tr ${q.gradient} text-white flex items-center justify-center text-lg shadow-sm">
+                                        <i class="fa-solid ${q.icon}"></i>
+                                    </span>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold ${q.answered ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+                                        ${q.answered ? '<i class="fa-solid fa-check ml-1"></i>נענתה' : `שאלה #${q.id}`}
+                                    </span>
+                                </div>
+                                <h3 class="font-bold text-slate-800 text-base text-right mb-2">${q.title}</h3>
+                                <p class="text-sm font-medium text-slate-600 text-right leading-snug">${q.frontText}</p>
+                            </div>
+                            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-indigo-600">
+                                <span>לחץ להנחיות ורמזים 💡</span>
+                                <button onclick="event.stopPropagation(); toggleQuestionAnswered(${q.id})" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-emerald-600 transition-colors" title="${q.answered ? 'סמן כלא נענתה' : 'סמן כנענתה'}">
+                                    <i class="fa-solid ${q.answered ? 'fa-circle-check text-emerald-500 text-base' : 'fa-circle-notch'}"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Back Side -->
+                        <div class="card-back bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl">
+                            <div class="text-right">
+                                <div class="flex items-center justify-between mb-2 border-b border-indigo-700/50 pb-2">
+                                    <span class="text-xs font-bold text-amber-300 flex items-center gap-1">
+                                        <i class="fa-solid fa-lightbulb"></i> רמז והכוונת שיתוף
+                                    </span>
+                                    <span class="text-xs text-indigo-300 font-bold">#${q.id} ${q.title}</span>
+                                </div>
+                                <p class="text-sm text-indigo-100 leading-relaxed font-normal mt-2">${q.hintText}</p>
+                            </div>
+                            <div class="pt-3 border-t border-indigo-800 flex items-center justify-between">
+                                <button onclick="event.stopPropagation(); toggleQuestionAnswered(${q.id})" class="px-3 py-1.5 rounded-xl text-xs font-bold ${q.answered ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} transition-colors">
+                                    ${q.answered ? '✓ נענתה (לחץ לביטול)' : 'סמן כנענתה'}
+                                </button>
+                                <span class="text-xs text-indigo-300 font-medium">חזרה <i class="fa-solid fa-rotate-left mr-1"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                cardsGrid.appendChild(cardWrapper);
+            });
+        }
+
+        function toggleCardFlip(id) {
+            const cardWrapper = document.getElementById(`card-${id}`);
+            if (cardWrapper) {
+                cardWrapper.classList.toggle('flipped');
+            }
+        }
+
+        function toggleQuestionAnswered(id) {
+            const q = questionsData.find(item => item.id === id);
+            if (q) {
+                q.answered = !q.answered;
+                renderCards();
+                updateWheel();
+            }
+        }
+
+        let currentAngle = 0;
+        let isSpinning = false;
+        const sliceColors = [
+            '#f43f5e', '#8b5cf6', '#f59e0b', '#10b981', '#06b6d4', 
+            '#e11d48', '#a855f7', '#d97706', '#059669', '#0284c7', '#ea580c'
+        ];
+
+        function getActiveWheelQuestions() {
+            const skip = document.getElementById('skipAnsweredCheckbox')?.checked;
+            if (skip) {
+                const remaining = questionsData.filter(q => !q.answered);
+                return remaining.length > 0 ? remaining : questionsData;
+            }
+            return questionsData;
+        }
+
+        function updateWheel() {
+            drawWheel();
+            updateActiveQuestionsList();
+        }
+
+        function updateActiveQuestionsList() {
+            const container = document.getElementById('activeQuestionsList');
+            if (!container) return;
+            const activeList = getActiveWheelQuestions();
+            
+            container.innerHTML = questionsData.map(q => {
+                const isActive = activeList.some(item => item.id === q.id);
+                return `
+                    <div class="flex items-center justify-between p-2 rounded-xl ${q.answered ? 'bg-slate-100 text-slate-400 line-through' : 'bg-slate-50 text-slate-700'}">
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+                            <span class="font-bold">#${q.id}</span>
+                            <span>${q.title}</span>
+                        </span>
+                        <button onclick="toggleQuestionAnswered(${q.id})" class="text-xs hover:text-indigo-600">
+                            <i class="fa-solid ${q.answered ? 'fa-arrow-rotate-left' : 'fa-check'}"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function drawWheel() {
+            const canvas = document.getElementById('wheelCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = width / 2 - 15;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const questions = getActiveWheelQuestions();
+            const numSlices = questions.length;
+            const sliceAngle = (Math.PI * 2) / numSlices;
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(currentAngle);
+
+            for (let i = 0; i < numSlices; i++) {
+                const startAngle = i * sliceAngle;
+                const endAngle = startAngle + sliceAngle;
+                const q = questions[i];
+
+                // Draw Slice
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = sliceColors[i % sliceColors.length];
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Draw Text inside slice
+                ctx.save();
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 16px Rubik, sans-serif';
+
+                let text = `#${q.id} ${q.title}`;
+                if (text.length > 16) text = text.substring(0, 15) + '...';
+                ctx.fillText(text, radius - 25, 6);
+
+                ctx.restore();
+            }
+
+            // Draw center hub
+            ctx.beginPath();
+            ctx.arc(0, 0, 45, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#6366f1';
+            ctx.stroke();
+
+            // Center icon text
+            ctx.fillStyle = '#6366f1';
+            ctx.font = 'bold 20px Rubik';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🌟', 0, 2);
+
+            ctx.restore();
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+            getAudioContext();
+
+            const questions = getActiveWheelQuestions();
+            if (questions.length === 0) return;
+
+            isSpinning = true;
+            const spinBtn = document.getElementById('spinBtn');
+            if (spinBtn) spinBtn.disabled = true;
+
+            const numSlices = questions.length;
+            const sliceAngle = (Math.PI * 2) / numSlices;
+
+            const targetIndex = Math.floor(Math.random() * numSlices);
+            const fullRounds = 5 + Math.floor(Math.random() * 4);
+            
+            const targetSliceCenter = targetIndex * sliceAngle + sliceAngle / 2;
+            const finalAngle = (Math.PI * 2 * fullRounds) + (Math.PI * 1.5 - targetSliceCenter);
+
+            const startAngle = currentAngle % (Math.PI * 2);
+            const deltaAngle = finalAngle - startAngle;
+            const duration = 4500;
+            const startTime = performance.now();
+
+            let lastTickSlice = -1;
+
+            function animateSpin(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                currentAngle = startAngle + deltaAngle * easeOut;
+
+                const normAngle = (Math.PI * 1.5 - (currentAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                const currentSliceIndex = Math.floor(normAngle / sliceAngle);
+
+                if (currentSliceIndex !== lastTickSlice) {
+                    playTickSound();
+                    lastTickSlice = currentSliceIndex;
+                }
+
+                drawWheel();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateSpin);
+                } else {
+                    isSpinning = false;
+                    if (spinBtn) spinBtn.disabled = false;
+                    const winningQuestion = questions[targetIndex];
+                    showResultModal(winningQuestion);
+                }
+            }
+
+            requestAnimationFrame(animateSpin);
+        }
+
+        let activeModalQuestionId = null;
+
+        function showResultModal(question) {
+            activeModalQuestionId = question.id;
+
+            playWinFanfare();
+            if (window.confetti) {
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            const modalIconContainer = document.getElementById('modalIconContainer');
+            modalIconContainer.className = `w-20 h-20 rounded-3xl mx-auto flex items-center justify-center text-3xl text-white shadow-lg bg-gradient-to-tr ${question.gradient}`;
+            
+            const modalIcon = document.getElementById('modalIcon');
+            modalIcon.className = `fa-solid ${question.icon}`;
+
+            document.getElementById('modalCategoryBadge').innerText = `שאלה #${question.id} • ${question.title}`;
+            document.getElementById('modalQuestionText').innerText = question.frontText;
+            document.getElementById('modalHintText').innerText = question.hintText;
+
+            const studentTitle = document.getElementById('modalStudentTitle');
+            if (currentPickedStudent) {
+                studentTitle.innerText = `🎯 השאלה מיועדת ל: ${currentPickedStudent}`;
+                studentTitle.classList.remove('hidden');
+            } else {
+                studentTitle.classList.add('hidden');
+            }
+
+            const modal = document.getElementById('resultModal');
+            const modalContent = document.getElementById('modalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-90');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('resultModal');
+            const modalContent = document.getElementById('modalContent');
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-90');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function markCurrentModalAsAnswered() {
+            if (activeModalQuestionId !== null) {
+                const q = questionsData.find(item => item.id === activeModalQuestionId);
+                if (q) {
+                    q.answered = true;
+                    renderCards();
+                    updateWheel();
+                }
+            }
+            closeModal();
+        }
+
+        window.onload = function() {
+            renderCards();
+            drawWheel();
+            updateActiveQuestionsList();
+            initStudentList();
+
+            window.addEventListener('resize', () => {
+                drawWheel();
+            });
+        };
+    </script>
+</body>
+</html>
+
+<footer style="text-align: center; padding: 15px; font-size: 14px; color: #666;">
+  <p>© 2026 נטלי דוד | כל הזכויות שמורות</p>
+</footer>

@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מכונת הזמן של הבינה המלאכותית</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Hebrew -->
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=Rubik:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#38bdf8',
+                            emerald: '#10b981',
+                            purple: '#8b5cf6',
+                            amber: '#f59e0b'
+                        }
+                    },
+                    fontFamily: {
+                        hebrew: ['Heebo', 'Rubik', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Heebo', sans-serif;
+            background: radial-gradient(circle at top center, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            user-select: none;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-12px); }
+            40%, 80% { transform: translateX(12px); }
+        }
+
+        .shake-animation {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(56, 189, 248, 0.8); }
+        }
+
+        .glow-active {
+            animation: pulse-glow 2s infinite;
+        }
+
+        .word-token {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-block;
+            margin: 0.15rem 0.2rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .word-token:hover:not(.found):not(.wrong-flash) {
+            background-color: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .word-token.found {
+            background-color: rgba(16, 185, 129, 0.25);
+            border-color: #10b981;
+            color: #34d399;
+            font-weight: 700;
+            cursor: default;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .word-token.wrong-flash {
+            background-color: rgba(239, 68, 68, 0.3);
+            border-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .draggable-verb {
+            cursor: grab;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            touch-action: none;
+        }
+
+        .draggable-verb:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        .draggable-verb.selected {
+            ring: 4px solid #38bdf8;
+            border-color: #38bdf8;
+            background-color: #334155;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        .drop-zone {
+            transition: all 0.3s ease;
+            min-height: 180px;
+        }
+
+        .drop-zone.drag-over {
+            background-color: rgba(56, 189, 248, 0.15);
+            border-color: #38bdf8;
+            transform: scale(1.02);
+        }
+
+        /* Glassmorphism card effect */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen justify-between p-3 sm:p-6 overflow-x-hidden">
+
+    <!-- Top Header -->
+    <header class="max-w-5xl mx-auto w-full flex flex-wrap justify-between items-center gap-4 bg-slate-900/80 p-4 rounded-2xl border border-slate-700/60 shadow-xl backdrop-blur">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600/30 p-3 rounded-xl border border-indigo-500/40 text-indigo-400">
+                <i class="fa-solid fa-hourglass-half text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300">
+                    מכונת הזמן של הבינה המלאכותית
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-400">פעילות חקר דקדוקית: זיהוי ומיון פעלים בציר הזמן</p>
+            </div>
+        </div>
+
+        <!-- Level Tracker & Score -->
+        <div class="flex items-center gap-4">
+            <div class="bg-slate-800/90 px-4 py-2 rounded-xl border border-slate-700 flex items-center gap-2">
+                <span class="text-xs text-slate-400">שלב:</span>
+                <span id="levelIndicator" class="font-bold text-sky-400 text-sm sm:text-base">1 מתוך 2</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto w-full my-6 flex-1 flex flex-col justify-center">
+
+        <!-- SCREEN 1: Verb Finding Game -->
+        <section id="screen1" class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-all duration-500">
+            
+            <!-- Instructions Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-700/60 pb-5">
+                <div>
+                    <span class="bg-sky-500/10 text-sky-400 text-xs font-bold px-3 py-1 rounded-full border border-sky-500/30">משימה 1</span>
+                    <h2 class="text-xl sm:text-2xl font-bold mt-2 text-white">איתור 10 הפעלים בטקסט</h2>
+                    <p class="text-sm text-slate-300 mt-1">קראו את הטקסט, זהו את **10 הפעלים** ולחצו עליהם בתוך הטקסט בלבד.</p>
+                </div>
+
+                <!-- Verb Progress Gauge -->
+                <div class="bg-slate-900/90 p-3 sm:p-4 rounded-2xl border border-slate-700 flex items-center gap-4 w-full md:w-auto">
+                    <div class="flex flex-col gap-1 w-full md:w-36">
+                        <div class="flex justify-between text-xs font-bold text-slate-300">
+                            <span>פעלים שנמצאו:</span>
+                            <span id="foundCounter" class="text-emerald-400">0 / 10</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+                            <div id="progressBar" class="bg-gradient-to-r from-sky-400 to-emerald-400 h-full w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Passage Box -->
+            <div class="bg-slate-950/70 p-6 sm:p-8 rounded-2xl border border-slate-800 text-lg sm:text-2xl leading-relaxed text-slate-200 tracking-wide select-none shadow-inner" id="textContainer">
+                <!-- Text tokens will be injected dynamically by JavaScript -->
+            </div>
+
+            <!-- Toast / Message Box -->
+            <div id="toastMessage" class="mt-4 min-h-[42px] flex items-center justify-center transition-opacity duration-300 opacity-0">
+                <div id="toastContent" class="px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg">
+                    <!-- Dynamic toast content -->
+                </div>
+            </div>
+
+            <!-- Action Button Area -->
+            <div class="mt-6 flex justify-end">
+                <button id="nextLevelBtn" onclick="switchScreen(2)" disabled class="bg-slate-800 text-slate-500 cursor-not-allowed opacity-60 font-bold px-8 py-3.5 rounded-2xl flex items-center gap-3 transition-all text-base border border-slate-700">
+                    <span>עבור לשלב הבא</span>
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- SCREEN 2: Timeline Sorting Game -->
+        <section id="screen2" class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl hidden transition-all duration-500">
+            
+            <!-- Instructions Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-700/60 pb-5">
+                <div>
+                    <span class="bg-purple-500/10 text-purple-400 text-xs font-bold px-3 py-1 rounded-full border border-purple-500/30">משימה 2</span>
+                    <h2 class="text-xl sm:text-2xl font-bold mt-2 text-white">מיון הפעלים על ציר הזמן</h2>
+                    <p class="text-sm text-slate-300 mt-1">גררו כל פועל לזמן המתאים, או לחצו על פועל ואז לחצו על הזמן המתאים על הלוח.</p>
+                </div>
+
+                <div class="text-xs sm:text-sm text-slate-400 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-700">
+                    <i class="fa-solid fa-lightbulb text-amber-400 ml-1"></i>
+                    <span>נותרו למיון: <strong id="remainingSortCount" class="text-amber-400 font-bold">10</strong> פעלים</span>
+                </div>
+            </div>
+
+            <!-- Unsorted Verbs Pool -->
+            <div class="mb-8">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">מחסן הפעלים למיון:</h3>
+                <div id="verbPool" class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 min-h-[90px] flex flex-wrap gap-3 items-center justify-center shadow-inner">
+                    <!-- Verb Cards generated here -->
+                </div>
+            </div>
+
+            <!-- Timeline Drop Zones (3 Columns) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+                <!-- Past Zone -->
+                <div class="drop-zone bg-slate-900/60 border-2 border-dashed border-sky-500/40 rounded-2xl p-4 flex flex-col justify-between shadow-lg" data-tense="past">
+                    <div class="border-b border-sky-500/30 pb-3 mb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-sky-400 text-lg"></i>
+                            <h4 class="font-extrabold text-sky-300 text-lg">עָבָר</h4>
+                        </div>
+                        <span class="text-xs bg-sky-500/20 text-sky-300 font-medium px-2.5 py-0.5 rounded-full">אתמול / בשנת 1950</span>
+                    </div>
+                    <div id="pastDropZone" class="flex-1 flex flex-col gap-2 min-h-[140px] items-center justify-start p-1">
+                        <!-- Dropped items go here -->
+                    </div>
+                </div>
+
+                <!-- Present Zone -->
+                <div class="drop-zone bg-slate-900/60 border-2 border-dashed border-purple-500/40 rounded-2xl p-4 flex flex-col justify-between shadow-lg" data-tense="present">
+                    <div class="border-b border-purple-500/30 pb-3 mb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-bolt text-purple-400 text-lg"></i>
+                            <h4 class="font-extrabold text-purple-300 text-lg">הוֹוֶה</h4>
+                        </div>
+                        <span class="text-xs bg-purple-500/20 text-purple-300 font-medium px-2.5 py-0.5 rounded-full">עכשיו / כיום</span>
+                    </div>
+                    <div id="presentDropZone" class="flex-1 flex flex-col gap-2 min-h-[140px] items-center justify-start p-1">
+                        <!-- Dropped items go here -->
+                    </div>
+                </div>
+
+                <!-- Future Zone -->
+                <div class="drop-zone bg-slate-900/60 border-2 border-dashed border-emerald-500/40 rounded-2xl p-4 flex flex-col justify-between shadow-lg" data-tense="future">
+                    <div class="border-b border-emerald-500/30 pb-3 mb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-rocket text-emerald-400 text-lg"></i>
+                            <h4 class="font-extrabold text-emerald-300 text-lg">עָתִיד</h4>
+                        </div>
+                        <span class="text-xs bg-emerald-500/20 text-emerald-300 font-medium px-2.5 py-0.5 rounded-full">מחר / בשנים הקרובות</span>
+                    </div>
+                    <div id="futureDropZone" class="flex-1 flex flex-col gap-2 min-h-[140px] items-center justify-start p-1">
+                        <!-- Dropped items go here -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Back & Verify Buttons -->
+            <div class="mt-8 flex justify-between items-center">
+                <button onclick="switchScreen(1)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 transition text-sm border border-slate-700">
+                    <i class="fa-solid fa-arrow-right"></i>
+                    <span>חזרה לשלב 1</span>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-500">
+        <div class="glass-card bg-slate-900/95 border-2 border-emerald-500/50 rounded-3xl p-8 max-w-lg w-full text-center shadow-2xl transform scale-90 transition-transform duration-500" id="victoryModalCard">
+            
+            <div class="w-20 h-20 bg-emerald-500/20 border-2 border-emerald-400 text-emerald-400 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+
+            <h2 class="text-3xl font-black text-white mb-2">כל הכבוד! אלופי הדקדוק!</h2>
+            <p class="text-slate-300 text-base mb-6">
+                הצלחתם לזהות ולמיין נכון את כל 10 הפעלים בטקסט על התפתחות הבינה המלאכותית!
+            </p>
+
+            <div class="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 mb-6 flex justify-around">
+                <div class="text-center">
+                    <span class="text-xs text-slate-400 block mb-1">פעלים שנמצאו</span>
+                    <span class="text-xl font-extrabold text-emerald-400">10 / 10</span>
+                </div>
+                <div class="w-px bg-slate-800"></div>
+                <div class="text-center">
+                    <span class="text-xs text-slate-400 block mb-1">דיוק בשיבוץ</span>
+                    <span class="text-xl font-extrabold text-sky-400">100%</span>
+                </div>
+            </div>
+
+            <button onclick="restartGame()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black py-3.5 rounded-2xl shadow-lg transition-all text-lg flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>שחק שוב</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="max-w-5xl mx-auto w-full text-center text-xs text-slate-500 py-3">
+        מכונת הזמן של הבינה המלאכותית &bull; מותאם להוראה בכיתה ח'
+    </footer>
+
+    <script>
+        /* =============================================================
+           1. DATASTRUCTURE: Text tokens with 10 exact target verbs
+           ============================================================= */
+        const textData = [
+            { id: 1, text: "בשנת", isVerb: false },
+            { id: 2, text: "1950", isVerb: false },
+            { id: 3, text: "פיתח", isVerb: true, cleanVerb: "פיתח", tense: "past", timeLabel: "עבר" },
+            { id: 4, text: "המתמטיקאי", isVerb: false },
+            { id: 5, text: "אלאן", isVerb: false },
+            { id: 6, text: "טיורינג", isVerb: false },
+            { id: 7, text: "את", isVerb: false },
+            { id: 8, text: "\"מבחן", isVerb: false },
+            { id: 9, text: "טיורינג\",", isVerb: false },
+            { id: 10, text: "חקר", isVerb: true, cleanVerb: "חקר", tense: "past", timeLabel: "עבר" },
+            { id: 11, text: "חשיבה", isVerb: false },
+            { id: 12, text: "ממוחשבת", isVerb: false },
+            { id: 13, text: "ואימן", isVerb: true, cleanVerb: "אימן", tense: "past", timeLabel: "עבר" },
+            { id: 14, text: "מכונה", isVerb: false },
+            { id: 15, text: "ראשונה.", isVerb: false },
+            { id: 16, text: "כיום", isVerb: false },
+            { id: 17, text: "מדענים", isVerb: false },
+            { id: 18, text: "משכללים", isVerb: true, cleanVerb: "משכללים", tense: "present", timeLabel: "הווה" },
+            { id: 19, text: "טכנולוגיות", isVerb: false },
+            { id: 20, text: "של", isVerb: false },
+            { id: 21, text: "בינה", isVerb: false },
+            { id: 22, text: "מלאכותית,", isVerb: false },
+            { id: 23, text: "מחברים", isVerb: true, cleanVerb: "מחברים", tense: "present", timeLabel: "הווה" },
+            { id: 24, text: "אותן", isVerb: false },
+            { id: 25, text: "למאגרי", isVerb: false },
+            { id: 26, text: "מידע", isVerb: false },
+            { id: 27, text: "ענקיים", isVerb: false },
+            { id: 28, text: "ויוצרים", isVerb: true, cleanVerb: "יוצרים", tense: "present", timeLabel: "הווה" },
+            { id: 29, text: "מודלים", isVerb: false },
+            { id: 30, text: "שמבינים", isVerb: true, cleanVerb: "מבינים", tense: "present", timeLabel: "הווה" },
+            { id: 31, text: "שפה", isVerb: false },
+            { id: 32, text: "אנושית.", isVerb: false },
+            { id: 33, text: "בשנים", isVerb: false },
+            { id: 34, text: "הקרובות", isVerb: false },
+            { id: 35, text: "אלגוריתמים", isVerb: false },
+            { id: 36, text: "אלו", isVerb: false },
+            { id: 37, text: "יפתרו", isVerb: true, cleanVerb: "יפתרו", tense: "future", timeLabel: "עתיד" },
+            { id: 38, text: "בעיות", isVerb: false },
+            { id: 39, text: "רפואיות", isVerb: false },
+            { id: 40, text: "מורכבות,", isVerb: false },
+            { id: 41, text: "יקדמו", isVerb: true, cleanVerb: "יקדמו", tense: "future", timeLabel: "עתיד" },
+            { id: 42, text: "את", isVerb: false },
+            { id: 43, text: "המדע", isVerb: false },
+            { id: 44, text: "וינווטו", isVerb: true, cleanVerb: "ינווטו", tense: "future", timeLabel: "עתיד" },
+            { id: 45, text: "חלליות", isVerb: false },
+            { id: 46, text: "למרחבי", isVerb: false },
+            { id: 47, text: "הקוסמוס.", isVerb: false }
+        ];
+
+        // State tracking
+        let foundVerbs = new Set();
+        let sortedVerbsCount = 0;
+        let selectedVerbCard = null; // For tap-to-select mode on touchscreen/mobile
+        const TOTAL_VERBS = textData.filter(t => t.isVerb).length;
+
+        /* =============================================================
+           2. AUDIO SYNTHESIZER (Web Audio API - No external files needed)
+           ============================================================= */
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playSuccess() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2); // G5
+
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+
+            playError() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playVictory() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.15, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.12);
+                    osc.stop(now + idx * 0.12 + 0.4);
+                });
+            }
+        }
+
+        const audio = new SoundEffects();
+
+        /* =============================================================
+           3. INITIALIZATION & SCREEN 1 LOGIC
+           ============================================================= */
+        window.onload = function() {
+            renderTextTokens();
+        };
+
+        function renderTextTokens() {
+            const container = document.getElementById('textContainer');
+            container.innerHTML = '';
+
+            textData.forEach(item => {
+                const token = document.createElement('span');
+                token.className = 'word-token';
+                token.textContent = item.text;
+                token.dataset.id = item.id;
+
+                token.addEventListener('click', () => handleWordClick(item, token));
+                container.appendChild(token);
+            });
+        }
+
+        function handleWordClick(item, element) {
+            if (foundVerbs.has(item.id)) return; // Already found
+
+            if (item.isVerb) {
+                // Correct Verb Clicked!
+                foundVerbs.add(item.id);
+                element.classList.add('found');
+                audio.playSuccess();
+                showToast(`מצוין! "${item.cleanVerb}" הוא פועל!`, 'success');
+
+                updateProgress();
+
+                // Check if all 10 found
+                if (foundVerbs.size === TOTAL_VERBS) {
+                    unlockNextLevel();
+                }
+            } else {
+                // Incorrect Click!
+                audio.playError();
+                triggerShake();
+                showToast(`"נסו שוב! המילה '${item.text.replace(/[^\u0590-\u05FF]/g, '')}' אינה פועל."`, 'error');
+
+                element.classList.add('wrong-flash');
+                setTimeout(() => {
+                    element.classList.remove('wrong-flash');
+                }, 500);
+            }
+        }
+
+        function updateProgress() {
+            const count = foundVerbs.size;
+            document.getElementById('foundCounter').textContent = `${count} / ${TOTAL_VERBS}`;
+            const percentage = (count / TOTAL_VERBS) * 100;
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+        }
+
+        function triggerShake() {
+            const screen = document.getElementById('screen1');
+            screen.classList.add('shake-animation');
+            setTimeout(() => {
+                screen.classList.remove('shake-animation');
+            }, 450);
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toastMessage');
+            const content = document.getElementById('toastContent');
+
+            if (type === 'success') {
+                content.className = "px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-lg";
+                content.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> ${message}`;
+            } else {
+                content.className = "px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-red-500/20 text-red-300 border border-red-500/40 shadow-lg";
+                content.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-400"></i> ${message}`;
+            }
+
+            toast.style.opacity = '1';
+            clearTimeout(window.toastTimer);
+            window.toastTimer = setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        function unlockNextLevel() {
+            const nextBtn = document.getElementById('nextLevelBtn');
+            nextBtn.disabled = false;
+            nextBtn.className = "bg-gradient-to-r from-emerald-400 to-sky-400 hover:from-emerald-300 hover:to-sky-300 text-slate-950 font-black px-8 py-3.5 rounded-2xl flex items-center gap-3 transition-all transform hover:scale-105 shadow-xl glow-active border border-emerald-300 cursor-pointer text-base";
+            audio.playVictory();
+            showToast("כל הכבוד! מצאתם את כל 10 הפעלים! לחצו לעבור לשלב הבא.", 'success');
+        }
+
+        /* =============================================================
+           4. SCREEN SWITCHING & SCREEN 2 TIMELINE SORTING
+           ============================================================= */
+        function switchScreen(screenNum) {
+            const s1 = document.getElementById('screen1');
+            const s2 = document.getElementById('screen2');
+            const levelInd = document.getElementById('levelIndicator');
+
+            if (screenNum === 2) {
+                s1.classList.add('hidden');
+                s2.classList.remove('hidden');
+                levelInd.textContent = "2 מתוך 2";
+                setupTimelineScreen();
+            } else {
+                s2.classList.add('hidden');
+                s1.classList.remove('hidden');
+                levelInd.textContent = "1 מתוך 2";
+            }
+        }
+
+        function setupTimelineScreen() {
+            const verbPool = document.getElementById('verbPool');
+            verbPool.innerHTML = '';
+
+            // Reset dropped zones
+            document.getElementById('pastDropZone').innerHTML = '';
+            document.getElementById('presentDropZone').innerHTML = '';
+            document.getElementById('futureDropZone').innerHTML = '';
+
+            sortedVerbsCount = 0;
+            updateRemainingCount();
+
+            // Filter the 10 verbs found
+            const verbsToSort = textData.filter(item => item.isVerb);
+
+            // Shuffle array for engaging challenge
+            const shuffled = [...verbsToSort].sort(() => Math.random() - 0.5);
+
+            shuffled.forEach(verb => {
+                const card = createVerbCard(verb);
+                verbPool.appendChild(card);
+            });
+
+            setupDropZones();
+        }
+
+        function createVerbCard(verb) {
+            const card = document.createElement('div');
+            card.className = "draggable-verb bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-600 px-4 py-2.5 rounded-xl font-bold text-base shadow-md flex items-center justify-between gap-3 select-none";
+            card.setAttribute('draggable', 'true');
+            card.id = `card-${verb.id}`;
+            card.dataset.id = verb.id;
+            card.dataset.tense = verb.tense;
+            card.dataset.cleanVerb = verb.cleanVerb;
+
+            card.innerHTML = `
+                <span>${verb.cleanVerb}</span>
+                <i class="fa-solid fa-grip-dots-vertical text-slate-500 text-xs"></i>
+            `;
+
+            // Drag events
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragend', handleDragEnd);
+
+            // Tap/Click event for touch devices
+            card.addEventListener('click', (e) => handleCardTap(e, card));
+
+            return card;
+        }
+
+        function handleCardTap(e, card) {
+            e.stopPropagation();
+
+            if (card.dataset.placed === "true") return;
+
+            if (selectedVerbCard === card) {
+                // Deselect
+                card.classList.remove('selected');
+                selectedVerbCard = null;
+            } else {
+                if (selectedVerbCard) {
+                    selectedVerbCard.classList.remove('selected');
+                }
+                selectedVerbCard = card;
+                card.classList.add('selected');
+                audio.playSuccess();
+            }
+        }
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.id);
+            e.target.classList.add('opacity-40');
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('opacity-40');
+        }
+
+        function setupDropZones() {
+            const zones = document.querySelectorAll('.drop-zone');
+
+            zones.forEach(zone => {
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('drag-over');
+                });
+
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('drag-over');
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('drag-over');
+                    const cardId = e.dataTransfer.getData('text/plain');
+                    const card = document.getElementById(cardId);
+                    if (card) {
+                        processDrop(card, zone);
+                    }
+                });
+
+                // Tap-to-place on timeline container click
+                zone.addEventListener('click', () => {
+                    if (selectedVerbCard) {
+                        processDrop(selectedVerbCard, zone);
+                        selectedVerbCard.classList.remove('selected');
+                        selectedVerbCard = null;
+                    }
+                });
+            });
+        }
+
+        function processDrop(card, zone) {
+            const targetTense = zone.dataset.tense;
+            const verbTense = card.dataset.tense;
+
+            if (targetTense === verbTense) {
+                // Correct placement!
+                audio.playSuccess();
+                card.dataset.placed = "true";
+                card.setAttribute('draggable', 'false');
+
+                // Style as placed item
+                card.className = "bg-emerald-500/15 border border-emerald-500/50 text-emerald-300 font-bold px-4 py-2 rounded-xl text-sm w-full flex justify-between items-center shadow";
+                card.innerHTML = `
+                    <span>${card.dataset.cleanVerb}</span>
+                    <i class="fa-solid fa-check text-emerald-400"></i>
+                `;
+
+                // Target specific column inner container
+                const targetContainer = zone.querySelector('div[id$="DropZone"]');
+                targetContainer.appendChild(card);
+
+                sortedVerbsCount++;
+                updateRemainingCount();
+
+                if (sortedVerbsCount === TOTAL_VERBS) {
+                    setTimeout(triggerVictory, 400);
+                }
+            } else {
+                // Incorrect tense zone!
+                audio.playError();
+                zone.classList.add('shake-animation');
+                setTimeout(() => {
+                    zone.classList.remove('shake-animation');
+                }, 450);
+            }
+        }
+
+        function updateRemainingCount() {
+            const remaining = TOTAL_VERBS - sortedVerbsCount;
+            document.getElementById('remainingSortCount').textContent = remaining;
+        }
+
+        /* =============================================================
+           5. VICTORY CELEBRATION & RESTART
+           ============================================================= */
+        function triggerVictory() {
+            audio.playVictory();
+
+            // Trigger canvas confetti fireworks
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+
+                setTimeout(() => {
+                    confetti({
+                        particleCount: 80,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 }
+                    });
+                    confetti({
+                        particleCount: 80,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 }
+                    });
+                }, 300);
+            }
+
+            // Show Victory Modal
+            const modal = document.getElementById('victoryModal');
+            const card = document.getElementById('victoryModalCard');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                card.classList.remove('scale-90');
+                card.classList.add('scale-100');
+            }, 50);
+        }
+
+        function restartGame() {
+            foundVerbs.clear();
+            sortedVerbsCount = 0;
+            selectedVerbCard = null;
+
+            // Reset UI
+            updateProgress();
+            const modal = document.getElementById('victoryModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+
+            // Reset Next Level button
+            const nextBtn = document.getElementById('nextLevelBtn');
+            nextBtn.disabled = true;
+            nextBtn.className = "bg-slate-800 text-slate-500 cursor-not-allowed opacity-60 font-bold px-8 py-3.5 rounded-2xl flex items-center gap-3 transition-all text-base border border-slate-700";
+
+            switchScreen(1);
+            renderTextTokens();
+        }
+    </script>
+</body>
+</html>

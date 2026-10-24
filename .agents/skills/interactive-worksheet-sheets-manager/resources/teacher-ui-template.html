@@ -1,0 +1,117 @@
+<!-- תבנית HTML + JS של מנהלת השיעור ושער הכניסה לתלמיד (נטלי דוד) -->
+
+<!-- 1. כפתור מנהלת השיעור (עליון ימני) -->
+<button id="teacher-toggle-btn" onclick="openTeacherLoginModal()" 
+        class="fixed top-4 right-4 z-40 bg-indigo-900/90 hover:bg-indigo-950 text-white px-4 py-2 rounded-2xl shadow-lg border border-indigo-400/30 flex items-center gap-2 text-sm font-bold backdrop-blur-md transition">
+    <i class="fa-solid fa-chalkboard-user text-indigo-300"></i>
+    <span>מנהלת השיעור</span>
+    <span id="teacher-connection-dot" class="w-2.5 h-2.5 rounded-full bg-slate-400" title="מצב חיבור לשיטס"></span>
+</button>
+
+<!-- 2. חיווי שמירה אוטומטית (עליון שמאלי) -->
+<div id="autosave-indicator" class="fixed top-4 left-4 z-40 bg-white/95 border border-slate-200 px-3.5 py-1.5 rounded-full shadow-md text-xs font-semibold text-slate-700 flex items-center gap-2 transition-all duration-300">
+    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+    <span id="autosave-text">שמירה אוטומטית פעילה</span>
+</div>
+
+<!-- 3. שער כניסה חובה לתלמיד (מוצג כברירת מחדל) -->
+<div id="student-gate-overlay" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border-4 border-indigo-100 text-center space-y-6">
+        <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-inner">
+            <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+            <h2 class="text-2xl font-black text-slate-900">ברוכים הבאים לפעילות!</h2>
+            <p class="text-sm text-slate-500 mt-1">יש להזין שם כדי להתחיל את המשימות</p>
+        </div>
+        <div class="space-y-4 text-right">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">שם מלא (שדה חובה):</label>
+                <input type="text" id="gate-student-name" placeholder="הקלד/י כאן את שמך המלא" 
+                       class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:border-indigo-500 focus:outline-none text-slate-800 font-semibold text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">כיתה (אופציונלי):</label>
+                <input type="text" id="gate-student-class" placeholder="למשל: ח'2" 
+                       class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:border-indigo-500 focus:outline-none text-slate-800 font-semibold text-sm">
+            </div>
+        </div>
+        <button onclick="startStudentActivity()" 
+                class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-black text-base rounded-2xl shadow-lg shadow-indigo-200 transition transform active:scale-95 flex items-center justify-center gap-2">
+            <span>התחל בפעילות</span>
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+    </div>
+</div>
+
+<!-- 4. חלונית מנהלת השיעור למורה (סיסמה: נטלידוד1234) -->
+<div id="teacher-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 space-y-6 text-right">
+        <!-- מסך כניסה למורה עם סיסמה -->
+        <div id="teacher-login-view" class="space-y-4 text-center max-w-sm mx-auto py-6">
+            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-2xl">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900">כניסה למנהלת השיעור</h3>
+            <p class="text-xs text-slate-500">הזיני את קוד הגישה של המורה</p>
+            <input type="password" id="teacher-pass-input" placeholder="הקלידי סיסמה" 
+                   class="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl text-center font-bold tracking-widest text-slate-800 focus:border-indigo-500 focus:outline-none">
+            <button onclick="verifyTeacherPassword()" 
+                    class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition">
+                כניסה ללוח הניהול
+            </button>
+        </div>
+
+        <!-- לוח בקרה למורה לאחר אימות -->
+        <div id="teacher-dashboard-view" class="hidden space-y-6">
+            <div class="flex items-center justify-between border-b pb-4">
+                <button onclick="closeTeacherModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <h3 class="text-lg font-black text-slate-900">מנהלת השיעור</h3>
+                        <p class="text-xs text-slate-500">חיבור גיליון וניהול קבצי תלמידים</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- שדה חיבור ל-Google Sheets -->
+            <div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 space-y-3">
+                <label class="block text-xs font-bold text-indigo-950">כתובת ה-Web App של Google Sheets שלך:</label>
+                <div class="flex gap-2">
+                    <input type="text" id="teacher-sheets-url-input" placeholder="https://script.google.com/macros/s/.../exec"
+                           class="flex-1 px-3 py-2 border rounded-xl text-xs bg-white text-slate-800 font-mono focus:outline-none focus:border-indigo-500">
+                    <button onclick="saveTeacherSheetsUrl()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition">
+                        שמור חיבור
+                    </button>
+                </div>
+                <div class="flex items-center justify-between text-xs pt-1">
+                    <button onclick="disconnectTeacherSheets()" class="text-rose-600 hover:underline font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-plug-circle-xmark"></i> נתק או החלף מורה
+                    </button>
+                    <span id="teacher-url-status" class="text-slate-500"></span>
+                </div>
+            </div>
+
+            <!-- פעולות הפצה לתלמידים -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button onclick="sendTestRowToSheets()" class="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-2xl font-bold text-xs flex flex-col items-center justify-center gap-1 transition">
+                    <i class="fa-solid fa-vial-circle-check text-base text-emerald-600"></i>
+                    <span>שלח שורת בדיקה לשיטס שלי</span>
+                </button>
+                <button onclick="copyStudentShareLink()" class="p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 rounded-2xl font-bold text-xs flex flex-col items-center justify-center gap-1 transition">
+                    <i class="fa-solid fa-link text-base text-indigo-600"></i>
+                    <span>העתק קישור מותאם לתלמידים</span>
+                </button>
+                <button onclick="downloadCleanStudentHtml()" class="p-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 rounded-2xl font-bold text-xs flex flex-col items-center justify-center gap-1 transition">
+                    <i class="fa-solid fa-file-arrow-down text-base text-purple-600"></i>
+                    <span>הורד קובץ מוכן לתלמידים שלי</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
