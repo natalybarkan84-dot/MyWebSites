@@ -90,13 +90,13 @@
                 <div class="flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-xl border border-white/20 text-xs shadow-sm">
                     <i class="fa-solid fa-gauge-high text-amber-200 ml-1"></i>
                     <span class="font-bold opacity-90 ml-1">מְהִירוּת:</span>
-                    <button onclick="setAudioSpeed(0.8)" data-speed="0.8" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="הַאֲטָה (קצב נוח ואיטי)">0.8x</button>
-                    <button onclick="setAudioSpeed(1.0)" data-speed="1.0" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="קצב רגיל">1x</button>
-                    <button onclick="setAudioSpeed(1.25)" data-speed="1.25" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="הַאֲצָה (קצב מהיר יותר)">1.25x</button>
+                    <button onclick="TTS.setSpeed(0.8)" data-speed="0.8" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="הַאֲטָה (קצב מותאם ואיטי)">0.8x</button>
+                    <button onclick="TTS.setSpeed(1.0)" data-speed="1.0" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="קצב רגיל">1x</button>
+                    <button onclick="TTS.setSpeed(1.25)" data-speed="1.25" class="speed-btn px-2 py-0.5 rounded-lg text-xs font-bold transition" title="הַאֲצָה (קצב מהיר)">1.25x</button>
                 </div>
 
                 <!-- Stop Audio Button -->
-                <button id="stop-audio-btn" onclick="stopAudioPlayback()" class="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-sm flex items-center gap-1.5 border border-rose-400" title="עֲצוֹר הַקְרָאָה עַכְשָׁיו">
+                <button id="stop-audio-btn" onclick="TTS.stop()" class="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-sm flex items-center gap-1.5 border border-rose-400" title="עֲצוֹר הַקְרָאָה עַכְשָׁיו">
                     <i class="fa-solid fa-circle-stop"></i>
                     <span>עֲצוֹר</span>
                 </button>
@@ -122,7 +122,7 @@
                 <i class="fa-solid fa-headphones text-amber-200"></i>
                 <span id="tts-live-text" class="font-semibold truncate max-w-md">מַקְרִיאָה בְּקוֹל נָשִׁי אֱנוֹשִׁי...</span>
             </div>
-            <button onclick="stopAudioPlayback()" class="underline hover:text-amber-200 font-bold mr-2 text-rose-100 flex items-center gap-1">
+            <button onclick="TTS.stop()" class="underline hover:text-amber-200 font-bold mr-2 text-rose-100 flex items-center gap-1">
                 <i class="fa-solid fa-stop text-[10px]"></i> לַעֲצִירָה לַחֲצִי כָּאן
             </button>
         </div>
@@ -427,55 +427,155 @@
         let selectedCardId = null;
         let solvedCount = 0;
         const totalQuestions = 5;
-
-        // =========================================================================
-        // מנוע השמעה והקראה אנושית נשית (Human Female Voice TTS Engine)
-        // כולל: שליטה במהירות (האצה/האטה), כפתור עצירה מיידי, חלוקת משפטים ותמיכה בניקוד
-        // =========================================================================
-        let currentPlaybackSpeed = 0.8; // ברירת מחדל מותאמת ואיטית ללמידה בחינוך מיוחד
-        let activeAudio = null;
-        let activeUtterance = null;
-        let audioPlayQueue = [];
-        let currentQueueIndex = 0;
-        let femaleWebVoice = null;
         let currentSpeakingBtn = null;
-        let isSpeakingActive = false;
 
-        // טעינת מהירות שמורה אם קיימת
-        try {
-            const savedSpeed = localStorage.getItem('shavuot_audio_speed');
-            if (savedSpeed) {
-                currentPlaybackSpeed = parseFloat(savedSpeed) || 0.8;
-            }
-        } catch (e) {}
+        // =========================================================================
+        // מנוע הקראה אנושית נשית מובנה (Web Speech API TTS Engine)
+        // פועל ישירות בתוך הדפדפן ללא תלות ברשת חיצונית, חסימות ORB או CORS
+        // תומך בקולות נשיים טבעיים (Hila / Carmit / Google), בקרת מהירות ועצירה מיידית
+        // =========================================================================
+        const TTS = {
+            available: 'speechSynthesis' in window,
+            currentSpeed: 0.85,
+            isSpeaking: false,
+            _token: 0,
+            _keepUtterances: [],
+            _resumeTimer: null,
 
-        // אתחול קול נשי אנושי עבור Web Speech API (למקרה של ניתוק רשת או מצב אופליין)
-        function initFemaleVoice() {
-            if (!('speechSynthesis' in window)) return;
-            const findVoice = () => {
-                const voices = window.speechSynthesis.getVoices();
-                const heVoices = voices.filter(v => /^(he|iw)([-_]|$)/i.test(v.lang));
-                // דירוג קולות נשיים איכותיים: הילה (Edge), כרמית (Apple), גוגל עברית נשית
+            getBestVoice() {
+                if (!this.available) return null;
+                const voices = window.speechSynthesis.getVoices() || [];
+                const heVoices = voices.filter(v => /^(he|iw)([-_]|$)/i.test(v.lang) || /hebrew/i.test(v.name));
+                if (heVoices.length === 0) return null;
+
                 const rank = v => {
                     const n = (v.name || '').toLowerCase();
-                    let score = 0;
-                    if (/hila|הילה/i.test(n)) score += 20;
-                    if (/carmit|כרמית/i.test(n)) score += 18;
-                    if (/google/i.test(n)) score += 15;
-                    if (/natural|neural|online/i.test(n)) score += 10;
-                    if (/female|נשי|אישה/i.test(n)) score += 5;
-                    if (/asaf|אסף|male|גבר/i.test(n)) score -= 20; // סינון קול רובוטי גברי
-                    return score;
+                    let s = 0;
+                    if (/hila|הילה/i.test(n)) s += 30;
+                    if (/carmit|כרמית/i.test(n)) s += 25;
+                    if (/google/i.test(n) && !/male/i.test(n)) s += 20;
+                    if (/natural|neural|online/i.test(n)) s += 15;
+                    if (/female|נשי|אישה/i.test(n)) s += 10;
+                    return s;
                 };
+
                 heVoices.sort((a, b) => rank(b) - rank(a));
-                femaleWebVoice = heVoices[0] || null;
-            };
-            findVoice();
-            if (window.speechSynthesis.onvoiceschanged !== undefined) {
-                window.speechSynthesis.onvoiceschanged = findVoice;
+                return heVoices[0];
+            },
+
+            init() {
+                if (!this.available) return;
+                try {
+                    const savedSpeed = localStorage.getItem('shavuot_audio_speed');
+                    if (savedSpeed) this.currentSpeed = parseFloat(savedSpeed) || 0.85;
+                } catch(e) {}
+
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        this.getBestVoice();
+                    };
+                }
+                updateSpeedButtonsUI(this.currentSpeed);
+            },
+
+            setSpeed(speed) {
+                this.currentSpeed = speed;
+                try {
+                    localStorage.setItem('shavuot_audio_speed', speed);
+                } catch(e) {}
+                updateSpeedButtonsUI(speed);
+            },
+
+            stop() {
+                if (!this.available) return;
+                this._token++;
+                clearInterval(this._resumeTimer);
+                window.speechSynthesis.cancel();
+                this._keepUtterances = [];
+                this.isSpeaking = false;
+                setSpeakingUI(false);
+            },
+
+            speak(text, btnElement = null) {
+                if (!this.available || !text || !text.trim()) return;
+
+                // עצירת כל השמעה פעילה קודמת
+                this.stop();
+
+                const token = ++this._token;
+                this.isSpeaking = true;
+                setSpeakingUI(true, text);
+
+                if (btnElement) {
+                    currentSpeakingBtn = btnElement;
+                    btnElement.classList.add('speaking-active');
+                }
+
+                // חלוקת הטקסט למשפטים קצרים כדי למנוע השהיות בכרום ובמכשירים ניידים
+                const clean = text.replace(/\s+/g, ' ').trim();
+                const sentences = clean.split(/(?<=[.!?։;])\s+/).filter(s => s && s.trim());
+                const chunks = sentences.length > 0 ? sentences : [clean];
+
+                const bestVoice = this.getBestVoice();
+                // אם הקול הוא נשי טבעי (Hila/Carmit), נשתמש ב-pitch 1.05; אם קול ברירת מחדל, נגביה מעט ל-1.25 לגוון נשי ונעים
+                const isNaturalFemale = bestVoice && /hila|carmit|female|אישה/i.test(bestVoice.name);
+                const pitch = isNaturalFemale ? 1.05 : 1.25;
+
+                chunks.forEach((chunk, idx) => {
+                    const utterance = new SpeechSynthesisUtterance(chunk);
+                    utterance.lang = 'he-IL';
+                    utterance.rate = this.currentSpeed;
+                    utterance.pitch = pitch;
+                    if (bestVoice) {
+                        utterance.voice = bestVoice;
+                    }
+
+                    if (idx === chunks.length - 1) {
+                        utterance.onend = () => {
+                            if (this._token === token) {
+                                this.stop();
+                            }
+                        };
+                    }
+
+                    utterance.onerror = (e) => {
+                        if (e.error !== 'interrupted' && e.error !== 'canceled') {
+                            console.warn('TTS playback note:', e);
+                        }
+                        if (idx === chunks.length - 1 && this._token === token) {
+                            this.stop();
+                        }
+                    };
+
+                    this._keepUtterances.push(utterance);
+                    window.speechSynthesis.speak(utterance);
+                });
+
+                // מניעת השהיות בכרום (Keep-alive timer)
+                clearInterval(this._resumeTimer);
+                this._resumeTimer = setInterval(() => {
+                    if (!window.speechSynthesis.speaking) {
+                        clearInterval(this._resumeTimer);
+                        return;
+                    }
+                    window.speechSynthesis.pause();
+                    window.speechSynthesis.resume();
+                }, 8000);
             }
+        };
+
+        // פונקציית תאימות להקראה
+        function readText(text, btnElement = null) {
+            TTS.speak(text, btnElement);
         }
-        initFemaleVoice();
+
+        function stopAudioPlayback() {
+            TTS.stop();
+        }
+
+        function setAudioSpeed(speed) {
+            TTS.setSpeed(speed);
+        }
 
         // עדכון UI של כפתורי המהירות
         function updateSpeedButtonsUI(speed) {
@@ -489,45 +589,8 @@
             });
         }
 
-        // שינוי מהירות ההקראה (האצה או האטה)
-        function setAudioSpeed(speed) {
-            currentPlaybackSpeed = speed;
-            if (activeAudio) {
-                activeAudio.playbackRate = speed;
-            }
-            try {
-                localStorage.setItem('shavuot_audio_speed', speed);
-            } catch (e) {}
-            updateSpeedButtonsUI(speed);
-        }
-
-        // חלוקת טקסט למשפטים קצרים (עד ~120 תווים למקטע) למניעת שגיאת 400 ב-Google TTS
-        function splitTextIntoSentences(text) {
-            if (!text) return [];
-            const clean = text.replace(/\s+/g, ' ').trim();
-            // פיצול לפי סימני פיסוק (נקודה, סימן שאלה, סימן קריאה, נקודה-פסיק)
-            const rawChunks = clean.split(/(?<=[.!?։;])\s+/);
-            const finalChunks = [];
-
-            rawChunks.forEach(chunk => {
-                if (!chunk.trim()) return;
-                // אם המקטע עדיין ארוך מדי, מפצלים גם לפי פסיק
-                if (chunk.length > 120) {
-                    const subChunks = chunk.split(/(?<=[,،])\s+/);
-                    subChunks.forEach(sub => {
-                        if (sub.trim()) finalChunks.push(sub.trim());
-                    });
-                } else {
-                    finalChunks.push(chunk.trim());
-                }
-            });
-
-            return finalChunks.length > 0 ? finalChunks : [clean];
-        }
-
         // עדכון סטטוס ההקראה ב-UI
         function setSpeakingUI(active, textPreview = '') {
-            isSpeakingActive = active;
             const stopBtn = document.getElementById('stop-audio-btn');
             const liveBanner = document.getElementById('tts-live-banner');
             const liveText = document.getElementById('tts-live-text');
@@ -541,7 +604,7 @@
                     liveBanner.classList.add('flex');
                 }
                 if (liveText && textPreview) {
-                    liveText.innerText = "מַקְרִיאָה כָּעֵת: " + (textPreview.length > 45 ? textPreview.substring(0, 45) + "..." : textPreview);
+                    liveText.innerText = "מַקְרִיאָה בְּקוֹל נָשִׁי: " + (textPreview.length > 50 ? textPreview.substring(0, 50) + "..." : textPreview);
                 }
             } else {
                 if (stopBtn) {
@@ -559,128 +622,14 @@
             }
         }
 
-        // עצירה מוחלטת ומיידית של כל השמעה קולית
-        function stopAudioPlayback() {
-            if (activeAudio) {
-                activeAudio.pause();
-                activeAudio.currentTime = 0;
-                activeAudio.onended = null;
-                activeAudio.onerror = null;
-                activeAudio = null;
-            }
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-            }
-            activeUtterance = null;
-            audioPlayQueue = [];
-            currentQueueIndex = 0;
-            setSpeakingUI(false);
-        }
-
-        // פונקציית ההקראה המרכזית (קול נשי אנושי עם חלוקה למשפטים)
-        function readText(text, btnElement = null) {
-            stopAudioPlayback();
-            if (!text || !text.trim()) return;
-
-            if (btnElement) {
-                currentSpeakingBtn = btnElement;
-                currentSpeakingBtn.classList.add('speaking-active');
-            }
-
-            audioPlayQueue = splitTextIntoSentences(text);
-            currentQueueIndex = 0;
-            setSpeakingUI(true, audioPlayQueue[0]);
-
-            playNextAudioQueueItem();
-        }
-
-        // השמעת המקטע הבא בתור
-        function playNextAudioQueueItem() {
-            if (currentQueueIndex >= audioPlayQueue.length) {
-                stopAudioPlayback();
-                return;
-            }
-
-            const currentText = audioPlayQueue[currentQueueIndex];
-            const liveText = document.getElementById('tts-live-text');
-            if (liveText) {
-                liveText.innerText = "מַקְרִיאָה כָּעֵת: " + (currentText.length > 45 ? currentText.substring(0, 45) + "..." : currentText);
-            }
-
-            const encoded = encodeURIComponent(currentText);
-            const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encoded}`;
-
-            try {
-                activeAudio = new Audio(googleTtsUrl);
-                activeAudio.playbackRate = currentPlaybackSpeed;
-
-                activeAudio.onended = () => {
-                    currentQueueIndex++;
-                    playNextAudioQueueItem();
-                };
-
-                activeAudio.onerror = () => {
-                    // גיבוי ל-Web Speech API אם Google TTS נכשל (למשל בהעדר חיבור אינטרנט)
-                    playWebSpeechFallback(currentText, () => {
-                        currentQueueIndex++;
-                        playNextAudioQueueItem();
-                    });
-                };
-
-                const playPromise = activeAudio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(err => {
-                        console.warn("Audio play blocked or offline, switching to Web Speech fallback:", err);
-                        playWebSpeechFallback(currentText, () => {
-                            currentQueueIndex++;
-                            playNextAudioQueueItem();
-                        });
-                    });
-                }
-            } catch (err) {
-                playWebSpeechFallback(currentText, () => {
-                    currentQueueIndex++;
-                    playNextAudioQueueItem();
-                });
-            }
-        }
-
-        // גיבוי קולי בקול נשי עברי ב-Web Speech API
-        function playWebSpeechFallback(text, onEndCallback) {
-            if (!('speechSynthesis' in window)) {
-                if (onEndCallback) onEndCallback();
-                return;
-            }
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'he-IL';
-            utterance.rate = currentPlaybackSpeed;
-            if (femaleWebVoice) {
-                utterance.voice = femaleWebVoice;
-            }
-            utterance.onend = () => {
-                activeUtterance = null;
-                if (onEndCallback) onEndCallback();
-            };
-            utterance.onerror = () => {
-                activeUtterance = null;
-                if (onEndCallback) onEndCallback();
-            };
-            activeUtterance = utterance;
-            window.speechSynthesis.speak(utterance);
-        }
-
         // =========================================================================
-        // פונקציות הקראה ייעודיות לחלקי הדף
+        // פונקציות הקראה ייעודיות
         // =========================================================================
-
-        // הקראת הוראות הפתיחה
         function readInstructions() {
-            const instr = "שָׁלוֹם גּוֹן! קִרְאִי אֶת הַסִּפּוּר, הַקְשִׁיבִי לַשְּׁאֵלוֹת וְגִרְרִי אֶת הַתְּשׁוּבוֹת הַנְּכוֹנוֹת לִמְקוֹמָן! בְּהַצְלָחָה!";
+            const instr = "שָׁלוֹם גּוֹן! קִרְאִי אֶת הַסִּפּוּר, הַקְשִׁיבִי לַשְּׁאֵלוֹת וְגִרְרִי אֶת הַתְּשׁוּבוֹת הַנְּכוֹנוֹת לִמְקוֹמָן! בְּהַצְלָחָה רַבָּה!";
             readText(instr);
         }
 
-        // מאגר פסקאות הסיפור עם ניקוד מדויק
         const STORY_PARAGRAPHS = [
             "שָׁנִים רַבּוֹת לִפְנֵי שֶׁנּוֹלַד דָּוִד הַמֶּלֶךְ, הָיָה רָעָב כָּבֵד בְּאֶרֶץ יִשְׂרָאֵל. לָאֲנָשִׁים לֹא הָיָה מָה לֶאֱכֹל.",
             "אִישׁ עָשִׁיר אֶחָד מִבֵּית לֶחֶם, שֶׁקָּרְאוּ לוֹ אֱלִימֶלֶךְ, לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וְנָעַל אֶת הַשְּׁעָרִים שֶׁלּוֹ. הוּא לָקַח אֶת אִשְׁתּוֹ נָעֳמִי וְאֶת שְׁנֵי בָּנָיו, וּבָרַח לְאֶרֶץ מוֹאָב הַשְּׁכֵנָה.",
@@ -689,7 +638,6 @@
             "הַשְּׁתַּיִם חָזְרוּ יַחַד לָעִיר בֵּית לֶחֶם בִּתְחִלַּת קְצִיר הַחִטִּים. בִּגְלַל שֶׁלֹּא הָיָה לָהֶן אֹכֶל בַּבַּיִת, רוּת הָלְכָה לַשָּׂדֶה הַחַקְלָאִי כְּדֵי לְלַקֵּט, לֶאֱסוֹף מֵהָרִצְפָּה, שִׁבֳּלִים בּוֹדְדוֹת שֶׁנָּפְלוּ לַקּוֹצְרִים. רוּת עָשְׂתָה חֶסֶד גָּדוֹל מְאֹד עִם חֲמוֹתָהּ נָעֳמִי."
         ];
 
-        // הקראת פסקה בודדת מתוך הסיפור
         function readParagraph(num, btn) {
             document.querySelectorAll('.speaking-paragraph').forEach(el => el.classList.remove('speaking-paragraph'));
             const pEl = document.getElementById(`story-p-${num}`);
@@ -698,13 +646,11 @@
             readText(STORY_PARAGRAPHS[num - 1], btn);
         }
 
-        // הקראת כל הסיפור ברצף
         function readStory() {
             const btn = document.getElementById('read-story-btn');
             readText(STORY_PARAGRAPHS.join(" "), btn);
         }
 
-        // מאגר שאלות מנוקד
         const QUESTIONS_TEXT = {
             1: "מַדּוּעַ עָזַב אֱלִימֶלֶךְ אֶת אֶרֶץ יִשְׂרָאֵל וְעָבַר לְאֶרֶץ מוֹאָב?",
             2: "מָה קָרָה לְאֱלִימֶלֶךְ וְלִשְׁנֵי בָּנָיו בְּאֶרֶץ מוֹאָב?",
@@ -717,7 +663,6 @@
             readText(QUESTIONS_TEXT[num], btn);
         }
 
-        // מאגר תשובות מנוקד
         const CARDS_TEXT = {
             1: "בִּגְלַל שֶׁהָיָה רָעָב כָּבֵד בְּאֶרֶץ יִשְׂרָאֵל, וְהוּא (שֶׁהָיָה עָשִׁיר) לֹא רָצָה לַעֲזוֹר לָעֲנִיִּים וּבָרַח עִם מִשְׁפַּחְתּוֹ.",
             2: "בְּאֶרֶץ מוֹאָב הַמִּשְׁפָּחָה אִבְּדָה אֶת כָּל הַכֶּסֶף שֶׁלָּהּ, וְגַם אֱלִימֶלֶךְ וּשְׁנֵי בָּנָיו מֵתוּ.",
@@ -861,7 +806,6 @@
             if (solvedCount === totalQuestions) {
                 document.getElementById('celebration-box').classList.remove('hidden');
                 
-                // אפקט קונפטי חגיגי
                 try {
                     confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
                 } catch(e) {}
@@ -891,11 +835,10 @@
         // Reset App to Start Over
         // =========================================================================
         function resetApp() {
-            stopAudioPlayback();
+            TTS.stop();
             solvedCount = 0;
             selectedCardId = null;
             
-            // Re-render drop zones
             const zones = ['q1', 'q2', 'q3', 'q4', 'q5'];
             zones.forEach(zId => {
                 const el = document.getElementById(zId);
@@ -911,7 +854,6 @@
                 }
             });
 
-            // Show all drag cards
             const cards = ['ans1', 'ans2', 'ans3', 'ans4', 'ans5'];
             cards.forEach(c => {
                 const el = document.getElementById(c);
@@ -921,18 +863,14 @@
                 }
             });
 
-            // Hide celebration
             document.getElementById('celebration-box').classList.add('hidden');
-            
-            // Progress reset
             updateProgress();
-            
             readText("הַמְּשִׂימָה אוּתְחֲלָה מֵחָדָשׁ. בְּהַצְלָחָה גּוֹן!");
         }
 
-        // אתחול UI בטעינת הדף
+        // אתחול בטעינת הדף
         document.addEventListener('DOMContentLoaded', () => {
-            updateSpeedButtonsUI(currentPlaybackSpeed);
+            TTS.init();
         });
     </script>
 </body>
